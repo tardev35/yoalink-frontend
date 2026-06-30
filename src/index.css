@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+
+@theme {
+  --font-kanit: "IBM Plex Sans Thai", sans-serif;
+  /* 👉 กำหนดสีแบรนด์ตาม REF */
+  --teamlinks-bg-main: #0B101B;
+  --teamlinks-bg-card: #181E29;
+  --teamlinks-primary-pink: #EB568E;
+  --teamlinks-primary-blue: #144EE3;
+  --teamlinks-text-lite: #C9CED6;
+
+  --yoalink-bg-main: #0B101B;
+  --yoalink-bg-card: #181E29;
+  --yoalink-primary-pink: #EB568E;
+  --yoalink-primary-blue: #144EE3;
+  --yoalink-text-lite: #C9CED6;
+  --yoalink-text-system: #61DAFB; /* สีน้ำเงินสำหรับชื่อ Yoalink.com */
+}
+body {
+  @apply bg-[#0B101B];
+}
+
+
+:root {
+  font-family: var(--font-kanit);
+}
+
+
+button, input, textarea, select {
+  font-family: inherit;
+}
+.font-sans {
+  font-family: var(--font-kanit) !important;
+}
