@@ -119,6 +119,32 @@ export default function Dashboard() {
       });
   };
 
+  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบสมาชิก (เฉพาะ Admin)
+  const handleAdminDeleteUser = (id, username) => {
+    Swal.fire({ 
+      title: `ลบสมาชิก: ${username}?`, 
+      text: "การลบสมาชิกนี้จะทำให้สิทธิ์เข้าใช้งานระบบของเขาถูกทำลายทันที!",
+      icon: 'warning',
+      background: '#181E29', 
+      color: '#C9CED6', 
+      showCancelButton: true,
+      confirmButtonColor: '#EB568E',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'ใช่, ลบออกเลย!',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (res) => {
+      if (res.isConfirmed) {
+        try {
+          await axiosInstance.delete(`/api/admin/users/${id}`, axiosConfig);
+          Swal.fire({ icon: 'success', title: 'ลบสมาชิกเรียบร้อยแล้ว!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
+          fetchAdminUsers(); // รีเฟรชตารางสมาชิกใหม่
+        } catch (err) {
+          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบสมาชิกรายนี้ได้', background: '#181E29', color: '#C9CED6' });
+        }
+      }
+    });
+  };
+
   const handleAdminEditDomain = (id, currentName) => {
     Swal.fire({ title: 'แก้ไข Root Domain', input: 'text', inputValue: currentName, background: '#181E29', color: '#C9CED6', showCancelButton: true })
       .then(async (res) => {
@@ -128,6 +154,32 @@ export default function Dashboard() {
           fetchAdminDomains(); 
         }
       });
+  };
+
+  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบโดเมนหลัก (เฉพาะ Admin)
+  const handleAdminDeleteDomain = (id, domainName) => {
+    Swal.fire({ 
+      title: `ลบโดเมนหลัก: ${domainName}?`, 
+      text: "โปรดตรวจสอบว่าไม่มีลิงก์ย่อตัวไหนของสมาชิกกำลังเรียกใช้โดเมนนี้อยู่!",
+      icon: 'warning',
+      background: '#181E29', 
+      color: '#C9CED6', 
+      showCancelButton: true,
+      confirmButtonColor: '#EB568E',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'ใช่, ลบโดเมนเลย!',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (res) => {
+      if (res.isConfirmed) {
+        try {
+          await axiosInstance.delete(`/api/admin/domains/${id}`, axiosConfig);
+          Swal.fire({ icon: 'success', title: 'ลบโดเมนหลักสำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
+          fetchAdminDomains(); // รีเฟรชตารางโดเมนใหม่
+        } catch (err) {
+          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบโดเมนหลักนี้ได้', background: '#181E29', color: '#C9CED6' });
+        }
+      }
+    });
   };
 
   const handleAdminEditTag = (oldTag) => {
@@ -154,7 +206,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen pb-12 bg-[#0B101B] text-[#C9CED6] font-sans">
-      {/* TOP NAVBAR - ขยายพื้นที่ขอบซ้ายขวาเพิ่มขึ้น */}
+      {/* TOP NAVBAR */}
       <nav className="bg-[#181E29] border-b border-gray-800 relative overflow-hidden shadow-xl">
         <div className="max-w-[1440px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
           <h1 className="text-3xl font-black flex items-center gap-2 text-[#61DAFB]">Yoalink.com</h1>
@@ -165,10 +217,10 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* MAIN CONTAINER - ปรับระดับความกว้างแบบ Widescreen (max-w-[1440px]) */}
+      {/* MAIN CONTAINER */}
       <div className="max-w-[1440px] mx-auto px-6 mt-10">
         
-        {/* MAIN NAVIGATION TABS - ตัวหนังสือเมนูหลักใหญ่ขึ้นเด่นชัด */}
+        {/* MAIN NAVIGATION TABS */}
         <div className="flex gap-6 mb-8 border-b border-gray-800 pb-3">
           <button onClick={() => setActiveTab('links')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'links' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🔗 จัดการลิงก์</button>
           <button onClick={() => setActiveTab('domains')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'domains' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนของฉัน</button>
@@ -180,8 +232,6 @@ export default function Dashboard() {
         {/* 🔗 TAB 1: จัดการลิงก์ย่อ */}
         {activeTab === 'links' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            
-            {/* ฝั่งซ้าย: ฟอร์มการสร้างลิงก์ (ขนาด 1 ส่วน) */}
             <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 h-fit shadow-lg lg:col-span-1">
               <h2 className="text-2xl font-bold mb-6 text-white">✨ สร้างลิงก์ย่อใหม่</h2>
               <form onSubmit={handleCreateLink} className="space-y-5">
@@ -201,41 +251,23 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* ฝั่งขวา: ตารางแสดงข้อมูลลิงก์ย่อ (ขนาด 3 ส่วน - ขยายใหญ่สะใจกว้างขวางขึ้น) */}
             <div className="lg:col-span-3 bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
-              
-              {/* แถวเครื่องมือ: ระบบค้นหา และระบบเลือกกรองแท็ก */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">📋 รายการลิงก์ย่อในระบบ</h2>
-                
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  {/* แสดงสถานะเมื่อมีการเลือกกรองแท็กไว้ */}
                   {selectedTag && (
-                    <button 
-                      onClick={() => setSelectedTag('')}
-                      className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition"
-                    >
-                      ❌ ล้างแท็ก: #{selectedTag}
-                    </button>
+                    <button onClick={() => setSelectedTag('')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition">❌ ล้างแท็ก: #{selectedTag}</button>
                   )}
-                  
-                  {/* ดร็อปดาวน์เลือกแท็กที่ดึงมาโดยตรง */}
-                  <select 
-                    value={selectedTag} 
-                    onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }}
-                    className="px-4 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none cursor-pointer focus:border-gray-600"
-                  >
+                  <select value={selectedTag} onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }} className="px-4 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none cursor-pointer focus:border-gray-600">
                     <option value="">🏷️ กรองตามแท็กทั้งหมด</option>
                     {uniqueTagsInView.map(t => (
                       <option key={t} value={t}>#{t}</option>
                     ))}
                   </select>
-
                   <input type="text" placeholder="🔍 ค้นหา (ชื่อย่อ / URL ปลายทาง)..." value={search} onChange={(e) => {setSearch(e.target.value); setCurrentPage(1);}} className="px-5 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-white outline-none min-w-[260px] focus:border-gray-600" />
                 </div>
               </div>
 
-              {/* ส่วนของตารางข้อมูล - ปรับขนาดฟอนต์ให้อ่านง่ายเบอร์แรง */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
@@ -243,7 +275,6 @@ export default function Dashboard() {
                       <th className="p-4 w-[15%]">โดเมนหลัก</th>
                       <th className="p-4 w-[45%]">ลิงก์ย่อ / URL จริง</th>
                       <th className="p-4 w-[15%]">แท็ก (คลิกเพื่อค้นหา)</th>
-                      {/* 👑 คอลัมน์ลับ: แสดงเฉพาะคนที่เป็น Admin เพื่อเช็กผู้สร้างลิงก์ได้ทั้งหมด */}
                       {user.role === 'admin' && <th className="p-4 w-[12%] text-indigo-400">ผู้สร้าง (Owner)</th>}
                       <th className="p-4 w-[13%] text-center">จัดการลิงก์</th>
                     </tr>
@@ -272,12 +303,7 @@ export default function Dashboard() {
                             <div className="flex gap-1.5 flex-wrap">
                               {l.tags && l.tags.length > 0 ? (
                                 l.tags.map(t => (
-                                  <button 
-                                    key={t} 
-                                    onClick={() => { setSelectedTag(t); setCurrentPage(1); }}
-                                    className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition shadow-sm"
-                                    title="คลิกเพื่อกรองเฉพาะแท็กนี้"
-                                  >
+                                  <button key={t} onClick={() => { setSelectedTag(t); setCurrentPage(1); }} className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition shadow-sm">
                                     #{t}
                                   </button>
                                 ))
@@ -286,7 +312,6 @@ export default function Dashboard() {
                               )}
                             </div>
                           </td>
-                          {/* 👑 ช่องข้อมูลลับ: แสดงชื่อคนสร้างลิงก์ให้แอดมินเห็น */}
                           {user.role === 'admin' && (
                             <td className="p-4 font-bold text-indigo-400 text-sm">
                               👤 {l.User?.username || 'ระบบกลาง'}
@@ -337,7 +362,7 @@ export default function Dashboard() {
               <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
             </div>
 
-            {/* Admin Sub Tab: USERS */}
+            {/* Admin Sub Tab: USERS - เพิ่มปุ่มลบสมาชิกแบบกลุ่มปุ่มสองช่อง */}
             {adminSubTab === 'users' && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-base">
@@ -349,7 +374,11 @@ export default function Dashboard() {
                         <td className="p-4 text-[#61DAFB] font-mono font-semibold">{u.role.toUpperCase()}</td>
                         <td className="p-4 text-center">
                           {user.id !== u.id ? (
-                            <button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#144EE3]/40 cursor-pointer transition">สลับสิทธิ์ผู้ใช้</button>
+                            <div className="flex justify-center gap-2">
+                              <button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#144EE3]/40 cursor-pointer transition">สลับสิทธิ์ผู้ใช้</button>
+                              {/* 🔥 ปุ่มลบสมาชิกด่วนสีแดง */}
+                              <button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-500/40 cursor-pointer transition">ลบสมาชิก</button>
+                            </div>
                           ) : (
                             <span className="text-sm text-gray-500 font-bold italic">(ตัวคุณเอง)</span>
                           )}
@@ -361,7 +390,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Admin Sub Tab: DOMAINS */}
+            {/* Admin Sub Tab: DOMAINS - เพิ่มปุ่มลบโดเมนหลักข้างปุ่มแก้ไขดั้งเดิม */}
             {adminSubTab === 'domains' && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-base">
@@ -371,7 +400,11 @@ export default function Dashboard() {
                       <tr key={d.id} className="hover:bg-gray-800/20 transition-colors">
                         <td className="p-4 text-white font-bold text-lg">{d.name}</td>
                         <td className="p-4 text-center">
-                          <button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl font-bold text-sm mr-2 hover:bg-yellow-500/40 cursor-pointer transition">แก้ไขยกล็อต</button>
+                          <div className="flex justify-center gap-2">
+                            <button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-yellow-500/40 cursor-pointer transition">แก้ไขยกล็อต</button>
+                            {/* 🔥 ปุ่มลบโดเมนหลักสีแดง */}
+                            <button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-500/40 cursor-pointer transition">ลบโดเมน</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
