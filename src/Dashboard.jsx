@@ -250,7 +250,7 @@ export default function Dashboard() {
     <div className="min-h-screen pb-12 bg-[#0B101B] text-[#C9CED6] font-sans">
       {/* TOP NAVBAR */}
       <nav className="bg-[#181E29] border-b border-gray-800 relative overflow-hidden shadow-xl">
-        <div className="max-w-[1590px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
+        <div className="max-w-[1490px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
           <h1 className="text-3xl font-black flex items-center gap-2 text-[#61DAFB]">Yoalink.com</h1>
           <div className="flex items-center gap-6">
             <span className="text-base text-gray-400">ผู้ใช้: <strong className="text-white text-lg">{user.username}</strong></span>
@@ -260,7 +260,7 @@ export default function Dashboard() {
       </nav>
 
       {/* MAIN CONTAINER */}
-      <div className="max-w-[1440px] mx-auto px-6 mt-10">
+      <div className="max-w-[1540px] mx-auto px-6 mt-10">
         
         {/* MAIN NAVIGATION TABS */}
         <div className="flex gap-6 mb-8 border-b border-gray-800 pb-3">
