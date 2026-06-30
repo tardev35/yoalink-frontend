@@ -27,10 +27,12 @@ export default function Dashboard() {
   const [alias, setAlias] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // 🔥 States เพิ่มเติมสำหรับระบบสถิติโมดูล 1 แยกช่องทางการตลาด
+  // 🔥 States เพิ่มเติมสำหรับระบบสถิติโมดูล 1 & โมดูล 2 การตลาดคัดแยกช่วงเวลาพีก
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
+  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
+  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); // สถิติเวลาโมดูล 2
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -105,15 +107,21 @@ export default function Dashboard() {
     });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: ดึงข้อมูลสถิติช่องทางโมดูล 1 มาคำนวณกราฟ
+  // 🔥 ฟังก์ชันหน้าบ้าน: ดึงข้อมูลสถิติช่องทางโมดูล 1 + สถิติช่วงเวลาทองคำโมดูล 2 มาคำนวณกราฟพร้อมกัน
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
-      const res = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
-      setChannelStats(res.data || { totalChannelClicks: 0, stats: [] });
+      setStatsSubTab('channels'); // ตั้งค่าเริ่มต้นให้ส่องโมดูลช่องทางก่อน
+      
+      // ดึงสถิติมาร์เก็ตติ้งทั้ง 2 รูปแบบมาเก็บลงสเตท
+      const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
+      const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
+      
+      setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
+      setTimeStatsData(resTime.data || { hourly: [], daily: [] });
       setShowStatsModal(true);
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติช่องทางได้', background: '#181E29', color: '#C9CED6' });
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' });
     }
   };
 
@@ -242,7 +250,7 @@ export default function Dashboard() {
     <div className="min-h-screen pb-12 bg-[#0B101B] text-[#C9CED6] font-sans">
       {/* TOP NAVBAR */}
       <nav className="bg-[#181E29] border-b border-gray-800 relative overflow-hidden shadow-xl">
-        <div className="max-w-[1440px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
+        <div className="max-w-[1590px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
           <h1 className="text-3xl font-black flex items-center gap-2 text-[#61DAFB]">Yoalink.com</h1>
           <div className="flex items-center gap-6">
             <span className="text-base text-gray-400">ผู้ใช้: <strong className="text-white text-lg">{user.username}</strong></span>
@@ -483,64 +491,124 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ========================================================================= */}
-      {/* 📊 🔥 MODAL ร่างทอง: แสดงผลแถบสถิติเปอร์เซ็นต์แยกช่องทาง Facebook, TikTok, LINE, SMS, SEO */}
-      {/* ========================================================================= */}
+      {/* ==================================================================================== */}
+      {/* 📊 🔥 MODAL ร่องทอง: รวมศูนย์สถิติการตลาด (Module 1 แยกช่องทางค่ายดัง + Module 2 เทรนด์เวลาทองคำ) */}
+      {/* ==================================================================================== */}
       {showStatsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-[#181E29] border border-gray-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative">
+          <div className="bg-[#181E29] border border-gray-800 rounded-3xl p-8 max-w-3xl w-full shadow-2xl relative">
             
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-2xl font-black text-white flex items-center gap-2">📊 แดชบอร์ดวิเคราะห์ช่องทางการตลาด (Module 1)</h3>
+                <h3 className="text-2xl font-black text-white flex items-center gap-2">📊 ศูนย์วิเคราะห์ข้อมูลมาร์เก็ตติ้งรวม</h3>
                 <p className="text-sm text-gray-400 mt-1">ลิงก์ย่อ: <span className="text-[#61DAFB] font-bold">yoalink.com/{activeStatLink?.alias}</span></p>
               </div>
-              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-white bg-[#0B101B] p-2 rounded-xl text-sm font-bold border border-gray-800 cursor-pointer transition">✕ ปิดหน้าต่าง</button>
+              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-white bg-[#0B101B] px-3 py-1.5 rounded-xl text-sm font-bold border border-gray-800 cursor-pointer transition">✕ ปิดหน้าต่าง</button>
             </div>
 
-            <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-5 mb-6 flex justify-between items-center shadow-inner">
-              <span className="text-gray-400 text-base font-semibold">📈 ยอดคลิกแยกค่ายการตลาดรวม:</span>
-              <span className="text-3xl font-black text-[#61DAFB] tracking-wide">{channelStats.totalChannelClicks} <span className="text-sm text-gray-400 font-bold">ครั้ง</span></span>
+            {/* 📑 แท็บย่อยสลับหน้าสถิติภาพรวมภายใน Modal */}
+            <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
+              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด (Module 1)</button>
+              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ ช่วงเวลาทองคำ 24 ชม. & 7 วัน (Module 2)</button>
             </div>
 
-            {/* ส่วนเรนเดอร์แถบสถิติแต่ละค่ายการตลาด */}
-            <div className="space-y-5">
-              {channelStats.stats && channelStats.stats.length === 0 ? (
-                <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลทราฟฟิกการตลาดคลิกเข้ามา</p>
-              ) : (
-                channelStats.stats?.map((item, idx) => {
-                  let barColor = 'from-gray-600 to-gray-400';
-                  let channelTitle = item.channel.toUpperCase();
+            {/* ส่วนที่ 1: วิเคราะห์ตามช่องทางค่ายยิงแอด (Module 1 ของเดิมคงอยู่ครบถ้วน) */}
+            {statsSubTab === 'channels' && (
+              <div className="space-y-4">
+                <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
+                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกพิสูจน์ทราบแหล่งที่มารวม:</span>
+                  <span className="text-2xl font-black text-[#61DAFB] tracking-wide">{channelStats.totalChannelClicks} ครั้ง</span>
+                </div>
 
-                  if (item.channel === 'facebook') { barColor = 'from-blue-600 to-blue-400'; channelTitle = '🔵 FACEBOOK AD'; }
-                  else if (item.channel === 'tiktok') { barColor = 'from-pink-600 to-purple-500'; channelTitle = '🎵 TIKTOK AD'; }
-                  else if (item.channel === 'line') { barColor = 'from-green-600 to-green-400'; channelTitle = '🟢 LINE CAMPAIGN'; }
-                  else if (item.channel === 'sms') { barColor = 'from-orange-600 to-amber-500'; channelTitle = '📱 SMS BROADCAST'; }
-                  else if (item.channel === 'seo') { barColor = 'from-indigo-600 to-violet-400'; channelTitle = '🔍 SEO / ORGANIC'; }
-                  else { channelTitle = '🌐 DIRECT / OTHER TRAFFIC'; }
+                <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
+                  {channelStats.stats && channelStats.stats.length === 0 ? (
+                    <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลทราฟฟิกการตลาดคลิกเข้ามา</p>
+                  ) : (
+                    channelStats.stats?.map((item, idx) => {
+                      let barColor = 'from-gray-600 to-gray-400';
+                      let channelTitle = item.channel.toUpperCase();
 
-                  return (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between text-sm font-bold text-gray-300">
-                        <span>{channelTitle}</span>
-                        <span className="text-white">{item.clicks} คลิก (<span className="text-[#61DAFB]">{item.percentage}%</span>)</span>
-                      </div>
-                      {/* กราฟแท่งแนวนอนความละเอียดสูง */}
-                      <div className="w-full bg-[#0B101B] rounded-full h-7 overflow-hidden relative border border-gray-800/40 shadow-inner">
-                        <div 
-                          className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
-                          style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
-                        >
-                          {item.percentage > 5 && (
-                            <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>
-                          )}
+                      if (item.channel === 'facebook') { barColor = 'from-blue-600 to-blue-400'; channelTitle = '🔵 FACEBOOK AD'; }
+                      else if (item.channel === 'tiktok') { barColor = 'from-pink-600 to-purple-500'; channelTitle = '🎵 TIKTOK AD'; }
+                      else if (item.channel === 'line') { barColor = 'from-green-600 to-green-400'; channelTitle = '🟢 LINE CAMPAIGN'; }
+                      else if (item.channel === 'sms') { barColor = 'from-orange-600 to-amber-500'; channelTitle = '📱 SMS BROADCAST'; }
+                      else if (item.channel === 'seo') { barColor = 'from-indigo-600 to-violet-400'; channelTitle = '🔍 SEO / ORGANIC'; }
+                      else { channelTitle = '🌐 DIRECT / OTHER TRAFFIC'; }
+
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex justify-between text-sm font-bold text-gray-300">
+                            <span>{channelTitle}</span>
+                            <span className="text-white">{item.clicks} คลิก (<span className="text-[#61DAFB]">{item.percentage}%</span>)</span>
+                          </div>
+                          <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
+                            <div 
+                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
+                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
+                            >
+                              {item.percentage > 5 && (
+                                <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ส่วนที่ 2: ช่วงเวลาทองคำเรียงชั่วโมง + สถิติ 7 วัน (Module 2 ฟีเจอร์ใหม่แกะกล่อง!) */}
+            {statsSubTab === 'timeTrends' && (
+              <div className="space-y-6">
+                {/* แผนภูมิจำลองแท่งแนวตั้ง ยอดคลิกย้อนหลัง 7 วันล่าสุด */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 mb-3">📅 สถิติมาร์เก็ตติ้งรายวัน (7 วันล่าสุด)</h4>
+                  <div className="grid grid-cols-7 gap-2 items-end bg-[#0B101B] p-4 rounded-2xl border border-gray-800 h-32 shadow-inner">
+                    {timeStatsData.daily && timeStatsData.daily.length === 0 ? (
+                      <p className="text-center py-8 text-gray-500 text-sm italic col-span-full">ไม่มีข้อมูล</p>
+                    ) : (
+                      timeStatsData.daily?.map((d, i) => {
+                        const maxClicks = Math.max(...timeStatsData.daily.map(o => o.clicks), 1);
+                        const heightPercent = Math.min(Math.max((d.clicks / maxClicks) * 100, 8), 100);
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-1 group relative cursor-pointer">
+                            <span className="absolute -top-6 bg-gray-800 text-white text-[11px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition z-10">{d.clicks} คลิก</span>
+                            <div className="w-full bg-gradient-to-t from-[#EB568E]/60 to-[#EB568E] rounded-md transition-all duration-700 shadow-md" style={{ height: `${heightPercent}px` }}></div>
+                            <span className="text-[10px] text-gray-500 font-bold mt-1">{d.date}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* แผนภูมิสรุปเวลาทองคำ 24 ชั่วโมงแบบสไลด์ดูง่าย */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 mb-2">⏰ แผนภูมิวิเคราะห์พฤติกรรมลูกค้าเรียงตามชั่วโมง (ชั่วโมงทองคำ)</h4>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 bg-[#0B101B] p-4 rounded-2xl border border-gray-800 shadow-inner">
+                    {timeStatsData.hourly && timeStatsData.hourly.length === 0 ? (
+                      <p className="text-center py-4 text-gray-500 text-sm">ไม่มีข้อมูลประวัติเวลาคลิก</p>
+                    ) : (
+                      timeStatsData.hourly?.map((h, idx) => {
+                        const totalAllClicks = timeStatsData.hourly.reduce((s, o) => s + o.clicks, 0);
+                        const per = totalAllClicks > 0 ? Math.round((h.clicks / totalAllClicks) * 100) : 0;
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400 font-mono w-10">{h.hour}</span>
+                            <div className="flex-1 bg-gray-950 rounded-full h-3.5 overflow-hidden border border-gray-800 relative">
+                              <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-1000" style={{ width: `${per || (h.clicks > 0 ? 3 : 0)}%` }}></div>
+                            </div>
+                            <span className="text-xs font-bold text-orange-400 w-16 text-right">{h.clicks} คลิก ({per}%)</span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>
