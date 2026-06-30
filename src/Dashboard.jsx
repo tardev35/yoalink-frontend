@@ -27,12 +27,13 @@ export default function Dashboard() {
   const [alias, setAlias] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // 🔥 States เพิ่มเติมสำหรับระบบสถิติโมดูล 1 & โมดูล 2 การตลาดคัดแยกช่วงเวลาพีก
+  // 🔥 States เพิ่มเติมสำหรับระบบสถิติดึงควบ 3 โมดูลการตลาด
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
-  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends
+  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends, devices
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
-  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); // สถิติเวลาโมดูล 2
+  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] });
+  const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); // 🔥 โมดูล 3 State ใหม่
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -107,18 +108,19 @@ export default function Dashboard() {
     });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: ดึงข้อมูลสถิติช่องทางโมดูล 1 + สถิติช่วงเวลาทองคำโมดูล 2 มาคำนวณกราฟพร้อมกัน
+  // 🔥 ฟังก์ชันควบ 3 โมดูล: ดึงข้อมูลช่องทาง, เทรนด์เวลา และสถิติสแกนอุปกรณ์คนกดเข้ามาพร้อมกัน
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
-      setStatsSubTab('channels'); // ตั้งค่าเริ่มต้นให้ส่องโมดูลช่องทางก่อน
+      setStatsSubTab('channels'); // เปิดมาให้เจอหน้าช่องทางยิงแอดก่อน
       
-      // ดึงสถิติมาร์เก็ตติ้งทั้ง 2 รูปแบบมาเก็บลงสเตท
       const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
       const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
+      const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); // 🔥 ยิงหัวใหม่โมดูล 3
       
       setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
       setTimeStatsData(resTime.data || { hourly: [], daily: [] });
+      setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); // 🔥 บันทึกลงสเตทโมดูล 3
       setShowStatsModal(true);
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' });
@@ -161,7 +163,7 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบสมาชิก (เฉพาะ Admin)
+  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบสมาชิก (เฉพาะ Admin - ห้ามตัดออกเด็ดขาด)
   const handleAdminDeleteUser = (id, username) => {
     Swal.fire({ 
       title: `ลบสมาชิก: ${username}?`, 
@@ -179,7 +181,7 @@ export default function Dashboard() {
         try {
           await axiosInstance.delete(`/api/admin/users/${id}`, axiosConfig);
           Swal.fire({ icon: 'success', title: 'ลบสมาชิกเรียบร้อยแล้ว!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-          fetchAdminUsers(); // รีเฟรชตารางสมาชิกใหม่
+          fetchAdminUsers(); 
         } catch (err) {
           Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบสมาชิกรายนี้ได้', background: '#181E29', color: '#C9CED6' });
         }
@@ -198,7 +200,7 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบโดเมนหลัก (เฉพาะ Admin)
+  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบโดเมนหลัก (เฉพาะ Admin - ห้ามตัดออกเด็ดขาด)
   const handleAdminDeleteDomain = (id, domainName) => {
     Swal.fire({ 
       title: `ลบโดเมนหลัก: ${domainName}?`, 
@@ -216,7 +218,7 @@ export default function Dashboard() {
         try {
           await axiosInstance.delete(`/api/admin/domains/${id}`, axiosConfig);
           Swal.fire({ icon: 'success', title: 'ลบโดเมนหลักสำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-          fetchAdminDomains(); // รีเฟรชตารางโดเมนใหม่
+          fetchAdminDomains(); 
         } catch (err) {
           Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบโดเมนหลักนี้ได้', background: '#181E29', color: '#C9CED6' });
         }
