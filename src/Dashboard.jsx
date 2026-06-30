@@ -240,15 +240,17 @@ export default function Dashboard() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-800/60 text-sm font-bold text-gray-300 border-b border-gray-700">
-                      <th className="p-4 w-[20%]">โดเมนหลัก</th>
-                      <th className="p-4 w-[50%]">ลิงก์ย่อ / URL จริง</th>
+                      <th className="p-4 w-[15%]">โดเมนหลัก</th>
+                      <th className="p-4 w-[45%]">ลิงก์ย่อ / URL จริง</th>
                       <th className="p-4 w-[15%]">แท็ก (คลิกเพื่อค้นหา)</th>
-                      <th className="p-4 w-[15%] text-center">จัดการลิงก์</th>
+                      {/* 👑 คอลัมน์ลับ: แสดงเฉพาะคนที่เป็น Admin เพื่อเช็กผู้สร้างลิงก์ได้ทั้งหมด */}
+                      {user.role === 'admin' && <th className="p-4 w-[12%] text-indigo-400">ผู้สร้าง (Owner)</th>}
+                      <th className="p-4 w-[13%] text-center">จัดการลิงก์</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800 text-base">
                     {links.length === 0 ? (
-                      <tr><td colSpan="4" className="text-center py-10 text-gray-400 font-medium">📭 ไม่พบข้อมูลรายการลิงก์ตามที่ค้นหาในระบบ</td></tr>
+                      <tr><td colSpan={user.role === 'admin' ? "5" : "4"} className="text-center py-10 text-gray-400 font-medium">📭 ไม่พบข้อมูลรายการลิงก์ตามที่ค้นหาในระบบ</td></tr>
                     ) : (
                       links.map(l => (
                         <tr key={l.id} className="hover:bg-gray-800/30 transition-colors">
@@ -267,7 +269,6 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="p-4">
-                            {/* คลิกลูกป้ายแท็กตรงนี้ จะสั่งยิงคำสั่งค้นหากรองข้อมูลทันที */}
                             <div className="flex gap-1.5 flex-wrap">
                               {l.tags && l.tags.length > 0 ? (
                                 l.tags.map(t => (
@@ -285,6 +286,12 @@ export default function Dashboard() {
                               )}
                             </div>
                           </td>
+                          {/* 👑 ช่องข้อมูลลับ: แสดงชื่อคนสร้างลิงก์ให้แอดมินเห็น */}
+                          {user.role === 'admin' && (
+                            <td className="p-4 font-bold text-indigo-400 text-sm">
+                              👤 {l.User?.username || 'ระบบกลาง'}
+                            </td>
+                          )}
                           <td className="p-4 text-center">
                             <button onClick={() => handleDeleteLink(l.id)} className="text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-xl text-sm font-bold cursor-pointer transition">ลบข้อมูล</button>
                           </td>
