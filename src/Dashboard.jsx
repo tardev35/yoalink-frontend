@@ -1,7 +1,6 @@
 /* frontend/src/Dashboard.jsx */
 import { useState, useEffect } from 'react';
-import axios from 'react-router-dom';
-import axiosInstance from 'axios'; // ใช้สำหรับสั่งยิงผ่านสากล
+import axiosInstance from 'axios'; 
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
@@ -19,6 +18,9 @@ export default function Dashboard() {
   // 🌐 States สำหรับระบบจัดการโดเมน
   const [domains, setDomains] = useState([]);
   
+  // 👑 States สำหรับระบบ Admin (User Management)
+  const [usersList, setUsersList] = useState([]);
+
   // 📝 States สำหรับฟอร์มสร้างลิงก์ย่อ
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
@@ -35,15 +37,16 @@ export default function Dashboard() {
     }
     if (activeTab === 'links') {
       fetchLinks();
-    } else {
+    } else if (activeTab === 'domains') {
       fetchDomains();
+    } else if (activeTab === 'admin') {
+      fetchAdminUsers();
     }
   }, [activeTab, search, selectedTag, currentPage]);
 
-  // 🔵 1. ฟังก์ชันดึงลิงก์ (แกะข้อมูลเข้า Array อัตโนมัติ ป้องกันบั๊ก .map)
+  // 🔵 1. ฟังก์ชันดึงลิงก์
   const fetchLinks = async () => {
     try {
-      // 🟢 ใช้ Relative Path รองรับการเปิดบนโลกออนไลน์จริง
       const res = await axiosInstance.get(
         `/api/links?page=${currentPage}&limit=20&search=${search}&tag=${selectedTag}`,
         axiosConfig
@@ -65,7 +68,19 @@ export default function Dashboard() {
     }
   };
 
-  // 🚀 3. ฟังก์ชันสร้างลิงก์ย่อ (ไม่กรอก Alias = สุ่มอัตโนมัติ 4 ตัวอักษร)
+  // 👑 3. ฟังก์ชันดึงรายการสมาชิก (เฉพาะ Admin)
+  const fetchAdminUsers = async () => {
+    try {
+      const res = await axiosInstance.get('/api/admin/users', axiosConfig);
+      setUsersList(res.data || []);
+    } catch (err) {
+      console.error('Not authorized to view users');
+      Swal.fire('ปฏิเสธการเข้าถึง', 'คุณไม่มีสิทธิ์เข้าถึงเมนูผู้ดูแลระบบ', 'error');
+      setActiveTab('links'); // เด้งกลับหน้าหลัก
+    }
+  };
+
+  // 🚀 4. ฟังก์ชันสร้างลิงก์ย่อ
   const handleCreateLink = async (e) => {
     e.preventDefault();
     try {
@@ -89,7 +104,7 @@ export default function Dashboard() {
     }
   };
 
-  // 🌐 4. ฟังก์ชันแก้ไขสลับเปลี่ยนโดเมนหลักยกล็อต (Edit Bulk Domain)
+  // 🌐 5. ฟังก์ชันแก้ไขสลับเปลี่ยนโดเมนหลักยกล็อต
   const handleBulkEditDomain = (domainId, currentName) => {
     Swal.fire({
       title: '🌐 แก้ไข Root Domain ยกล็อต',
@@ -112,7 +127,7 @@ export default function Dashboard() {
     });
   };
 
-  // 🔴 5. ฟังก์ชันลบลิงก์ย่อ
+  // 🔴 6. ฟังก์ชันลบลิงก์ย่อ
   const handleDeleteLink = (id) => {
     Swal.fire({
       title: 'คุณต้องการลบลิงก์นี้ใช่หรือไม่?',
@@ -131,7 +146,67 @@ export default function Dashboard() {
     });
   };
 
-  // 🚪 6. ฟังก์ชันออกจากระบบ (Logout)
+  // 📋 7. ฟังก์ชันคัดลอกลิงก์แบบไฮเทค (แถม https:// ให้พร้อม)
+  const handleCopy = (alias) => {
+    const fullLink = `https://yoalink.com/${alias}`;
+    navigator.clipboard.writeText(fullLink);
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'คัดลอกลิงก์แล้ว!',
+      text: fullLink,
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000,
+      background: '#181E29',
+      color: '#C9CED6',
+      iconColor: '#61DAFB'
+    });
+  };
+
+  // 👑 8. ฟังก์ชันแอดมิน: สลับสิทธิ์ผู้ใช้งาน (Toggle Role)
+  const handleToggleRole = (userId, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    Swal.fire({
+      title: `เปลี่ยนสิทธิ์เป็น ${newRole.toUpperCase()}?`,
+      background: '#181E29', color: '#C9CED6',
+      showCancelButton: true, confirmButtonColor: '#144EE3',
+      confirmButtonText: 'ยืนยันการเปลี่ยน'
+    }).then(async (res) => {
+      if (res.isConfirmed) {
+        try {
+          await axiosInstance.put(`/api/admin/users/${userId}/role`, { role: newRole }, axiosConfig);
+          fetchAdminUsers();
+        } catch (err) {
+          Swal.fire('Error', 'เปลี่ยนสิทธิ์ไม่สำเร็จ', 'error');
+        }
+      }
+    });
+  };
+
+  // 👑 9. ฟังก์ชันแอดมิน: เตะคนออกจากระบบ (Delete User)
+  const handleDeleteUser = (userId, username) => {
+    Swal.fire({
+      title: `ลบสมาชิก ${username}?`,
+      text: '⚠️ การลบสมาชิกอาจทำให้ลิงก์ย่อที่เขาสร้างไว้กลายเป็นลิงก์กำพร้า',
+      icon: 'warning',
+      background: '#181E29', color: '#C9CED6',
+      showCancelButton: true, confirmButtonColor: '#EB568E',
+      confirmButtonText: 'ลบเลย!'
+    }).then(async (res) => {
+      if (res.isConfirmed) {
+        try {
+          await axiosInstance.delete(`/api/admin/users/${userId}`, axiosConfig);
+          fetchAdminUsers();
+        } catch (err) {
+          Swal.fire('Error', 'เตะสมาชิกไม่สำเร็จ', 'error');
+        }
+      }
+    });
+  };
+
+  // 🚪 10. ฟังก์ชันออกจากระบบ (Logout)
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
@@ -161,12 +236,17 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-4 mt-8">
         
         {/* เมนูแท็บสลับหน้าจอทำงาน */}
-        <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
+        <div className="flex flex-wrap gap-4 mb-6 border-b border-gray-800 pb-2">
           <button onClick={() => { setActiveTab('links'); setCurrentPage(1); }} className={`pb-2 px-4 font-bold transition cursor-pointer ${activeTab === 'links' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🔗 จัดการลิงก์</button>
           <button onClick={() => setActiveTab('domains')} className={`pb-2 px-4 font-bold transition cursor-pointer ${activeTab === 'domains' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🌐 จัดการโดเมน (Bulk Edit)</button>
+          
+          {/* ซ่อนแท็บนี้ถ้าไม่ใช่ Admin */}
+          {user.role === 'admin' && (
+            <button onClick={() => setActiveTab('admin')} className={`pb-2 px-4 font-bold transition cursor-pointer flex items-center gap-1 ${activeTab === 'admin' ? 'text-[#144EE3] border-b-2 border-[#144EE3]' : 'text-gray-400 hover:text-white'}`}>👑 ระบบผู้ดูแล (Admin)</button>
+          )}
         </div>
 
-        {activeTab === 'links' ? (
+        {activeTab === 'links' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* ฝั่งซ้าย: ฟอร์มการสร้างลิงก์ */}
@@ -189,7 +269,7 @@ export default function Dashboard() {
               </form>
             </div>
 
-            {/* ฝั่งขวา: ตารางแสดงข้อมูล */}
+            {/* ฝั่งขวา: ตารางแสดงข้อมูลลิงก์ */}
             <div className="lg:col-span-2 bg-[#181E29] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col justify-between">
               <div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -221,10 +301,15 @@ export default function Dashboard() {
                           <tr key={l.id} className="hover:bg-gray-800/20 transition-colors">
                             <td className="py-3.5 px-4 font-bold text-gray-400 text-xs">{l.Domain ? l.Domain.name : '-'}</td>
                             <td className="py-3.5 px-4">
-                              {/* 🟢 แสดงโดเมนแบรนด์ Yoalink.com ให้พร้อมคัดลอกใช้งานจริง */}
-                              <a href={`https://yoalink.com/${l.alias}`} target="_blank" rel="noreferrer" className="text-[#61DAFB] font-bold hover:underline">
-                                yoalink.com/{l.alias}
-                              </a>
+                              {/* 🟢 อัปเดตใหม่: ปุ่มก๊อปปี้ลิงก์พร้อมใช้ */}
+                              <div className="flex items-center gap-2">
+                                <a href={`https://yoalink.com/${l.alias}`} target="_blank" rel="noreferrer" className="text-[#61DAFB] font-bold hover:underline">
+                                  https://yoalink.com/{l.alias}
+                                </a>
+                                <button onClick={() => handleCopy(l.alias)} className="text-gray-400 hover:text-white transition cursor-pointer text-base bg-gray-800 hover:bg-gray-700 px-2 py-0.5 rounded-md" title="คัดลอกลิงก์">
+                                  📋
+                                </button>
+                              </div>
                               <span className="text-gray-500 block text-[11px] truncate max-w-[180px] mt-0.5" title={`${l.originalUrl}${l.parameter || ''}`}>
                                 {l.originalUrl}{l.parameter}
                               </span>
@@ -248,7 +333,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* หน้าปัดเลือกหน้าข้อมูล (Pagination) */}
+              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-4 mt-6 pt-4 border-t border-gray-800">
                   <button disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)} className="px-3 py-1 bg-[#0B101B] rounded-lg border border-gray-800 disabled:opacity-20 font-bold cursor-pointer">◀</button>
@@ -257,10 +342,11 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-
           </div>
-        ) : (
-          /* แท็บสลับหน้าจอการแก้ไขโดเมนยกล็อต (Bulk Edit Domain) */
+        )}
+
+        {/* แท็บ 🌐 ระบบจัดการโดเมน */}
+        {activeTab === 'domains' && (
           <div className="bg-[#181E29] p-6 rounded-2xl border border-gray-800 shadow-lg">
             <h2 className="text-xl font-bold mb-2 text-white flex items-center gap-2"><span>🖥️</span> ระบบจัดการโดเมนหลักทั้งหมด</h2>
             <p className="text-xs text-gray-400 mb-6">ระบบอัจฉริยะจะดึงข้อมูล Root Domain มาสร้างให้อัตโนมัติเมื่อมีการสร้างลิงก์ย่อ</p>
@@ -281,6 +367,55 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* แท็บ 👑 ระบบจัดการสมาชิก (เฉพาะ Admin) */}
+        {activeTab === 'admin' && user.role === 'admin' && (
+          <div className="bg-[#181E29] p-6 rounded-2xl border border-gray-800 shadow-lg">
+            <h2 className="text-xl font-bold mb-6 text-white flex items-center gap-2"><span>👑</span> บริหารจัดการสมาชิก (User Management)</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-800/50 text-xs uppercase text-gray-400 border-y border-gray-800">
+                    <th className="py-3.5 px-4">Username</th>
+                    <th className="py-3.5 px-4 text-center">สิทธิ์ (Role)</th>
+                    <th className="py-3.5 px-4 text-center">วันที่สมัคร</th>
+                    <th className="py-3.5 px-4 text-center">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800 text-sm">
+                  {usersList.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-800/20">
+                      <td className="py-3.5 px-4 font-bold text-white">{u.username}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${u.role === 'admin' ? 'bg-[#144EE3]/20 text-[#61DAFB] border border-[#144EE3]/30' : 'bg-gray-800 text-gray-400'}`}>
+                          {u.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center text-gray-400 text-xs">
+                        {new Date(u.createdAt).toLocaleDateString('th-TH')}
+                      </td>
+                      <td className="py-3.5 px-4 text-center space-x-2">
+                        {/* ป้องกัน Admin กดเปลี่ยนสิทธิ์ตัวเอง */}
+                        {user.id !== u.id && (
+                          <>
+                            <button onClick={() => handleToggleRole(u.id, u.role)} className="text-[#61DAFB] bg-[#144EE3]/10 hover:bg-[#144EE3]/30 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer">
+                              สลับสิทธิ์
+                            </button>
+                            <button onClick={() => handleDeleteUser(u.id, u.username)} className="text-red-400 bg-red-500/10 hover:bg-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer">
+                              เตะออก
+                            </button>
+                          </>
+                        )}
+                        {user.id === u.id && <span className="text-xs text-gray-500 italic">(ตัวคุณเอง)</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
