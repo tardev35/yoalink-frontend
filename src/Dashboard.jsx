@@ -260,7 +260,7 @@ export default function Dashboard() {
       </nav>
 
       {/* MAIN CONTAINER */}
-      <div className="max-w-[1540px] mx-auto px-6 mt-10">
+      <div className="max-w-[1640px] mx-auto px-6 mt-10">
         
         {/* MAIN NAVIGATION TABS */}
         <div className="flex gap-6 mb-8 border-b border-gray-800 pb-3">
@@ -508,8 +508,8 @@ export default function Dashboard() {
 
             {/* 📑 แท็บย่อยสลับหน้าสถิติภาพรวมภายใน Modal */}
             <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
-              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด (Module 1)</button>
-              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ ช่วงเวลาทองคำ 24 ชม. & 7 วัน (Module 2)</button>
+              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด</button>
+              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ ช่วงเวลาทองคำ 24 ชม. & 7 วัน </button>
             </div>
 
             {/* ส่วนที่ 1: วิเคราะห์ตามช่องทางค่ายยิงแอด (Module 1 ของเดิมคงอยู่ครบถ้วน) */}
