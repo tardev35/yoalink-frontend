@@ -27,13 +27,13 @@ export default function Dashboard() {
   const [alias, setAlias] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // 🔥 States เพิ่มเติมสำหรับระบบสถิติดึงควบ 3 โมดูลการตลาด
+  // 🔥 States เพิ่มเติมสำหรับระบบสถิติโมดูล 1, โมดูล 2 และโมดูล 3
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
   const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends, devices
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
-  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] });
-  const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); // 🔥 โมดูล 3 State ใหม่
+  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); // สถิติเวลาโมดูล 2
+  const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); // 🔥 โมดูล 3: State อุปกรณ์เพิ่มเข้ามาใหม่
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -108,15 +108,16 @@ export default function Dashboard() {
     });
   };
 
-  // 🔥 ฟังก์ชันควบ 3 โมดูล: ดึงข้อมูลช่องทาง, เทรนด์เวลา และสถิติสแกนอุปกรณ์คนกดเข้ามาพร้อมกัน
+  // 🔥 ฟังก์ชันหน้าบ้าน: ดึงข้อมูลสถิติช่องทางโมดูล 1 + สถิติเวลาโมดูล 2 + สถิติอุปกรณ์โมดูล 3 มารันสถิติพร้อมกัน
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
-      setStatsSubTab('channels'); // เปิดมาให้เจอหน้าช่องทางยิงแอดก่อน
+      setStatsSubTab('channels'); // ตั้งค่าเริ่มต้นให้ส่องโมดูลช่องทางก่อน
       
+      // ดึงสถิติมาร์เก็ตติ้งทั้ง 3 รูปแบบมาเก็บลงสเตทพร้อมหน้าพร้อมตา
       const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
       const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
-      const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); // 🔥 ยิงหัวใหม่โมดูล 3
+      const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); // 🔥 ดึงข้อมูลอุปกรณ์โมดูล 3
       
       setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
       setTimeStatsData(resTime.data || { hourly: [], daily: [] });
@@ -163,7 +164,6 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบสมาชิก (เฉพาะ Admin - ห้ามตัดออกเด็ดขาด)
   const handleAdminDeleteUser = (id, username) => {
     Swal.fire({ 
       title: `ลบสมาชิก: ${username}?`, 
@@ -200,7 +200,6 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: สั่งลบโดเมนหลัก (เฉพาะ Admin - ห้ามตัดออกเด็ดขาด)
   const handleAdminDeleteDomain = (id, domainName) => {
     Swal.fire({ 
       title: `ลบโดเมนหลัก: ${domainName}?`, 
@@ -342,7 +341,6 @@ export default function Dashboard() {
                               </div>
                               <span className="text-gray-400 text-sm truncate block max-w-[450px]" title={`${l.originalUrl}${l.parameter || ''}`}>{l.originalUrl}{l.parameter}</span>
                               
-                              {/* 🔥 MENU การตลาด: เจนลิงก์ ?src=xx อัตโนมัติและคัดลอกทันที */}
                               <div className="flex flex-wrap gap-1.5 bg-[#0B101B] p-2 rounded-xl border border-gray-800/60 w-fit">
                                 <button onClick={() => handleCopyChannelLink(l.alias, 'facebook')} className="bg-blue-600/10 hover:bg-blue-600/30 text-blue-400 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition">🔵 FB</button>
                                 <button onClick={() => handleCopyChannelLink(l.alias, 'tiktok')} className="bg-pink-600/10 hover:bg-pink-600/30 text-pink-400 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition">🎵 TikTok</button>
@@ -372,7 +370,6 @@ export default function Dashboard() {
                           )}
                           <td className="p-4 text-center">
                             <div className="flex justify-center gap-2">
-                              {/* 🔥 ปุ่มวิเคราะห์สถิติมาร์เก็ตติ้ง */}
                               <button onClick={() => handleOpenStats(l)} className="text-[#61DAFB] bg-[#61DAFB]/10 hover:bg-[#61DAFB]/20 px-3 py-1.5 rounded-xl text-sm font-bold cursor-pointer transition flex items-center gap-1">
                                 📊 วิเคราะห์ ({l.clicks || 0})
                               </button>
@@ -509,12 +506,14 @@ export default function Dashboard() {
             </div>
 
             {/* 📑 แท็บย่อยสลับหน้าสถิติภาพรวมภายใน Modal */}
-            <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
-              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด</button>
-              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-base cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ ช่วงเวลาทองคำ 24 ชม. & 7 วัน </button>
+            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-800 pb-2">
+              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด</button>
+              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ 24 ชม. & 7 วัน </button>
+              {/* 🔥 ปุ่มแท็บที่ 3: อุปกรณ์คนใช้งาน (เพิ่มขึ้นตรงนี้) */}
+              <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้งาน (Module 3)</button>
             </div>
 
-            {/* ส่วนที่ 1: วิเคราะห์ตามช่องทางค่ายยิงแอด (Module 1 ของเดิมคงอยู่ครบถ้วน) */}
+            {/* ส่วนที่ 1: วิเคราะห์ตามช่องทางค่ายยิงแอด (Module 1) */}
             {statsSubTab === 'channels' && (
               <div className="space-y-4">
                 <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
@@ -561,10 +560,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* ส่วนที่ 2: ช่วงเวลาทองคำเรียงชั่วโมง + สถิติ 7 วัน (Module 2 ฟีเจอร์ใหม่แกะกล่อง!) */}
+            {/* ส่วนที่ 2: ช่วงเวลาทองคำเรียงชั่วโมง + สถิติ 7 วัน (Module 2) */}
             {statsSubTab === 'timeTrends' && (
               <div className="space-y-6">
-                {/* แผนภูมิจำลองแท่งแนวตั้ง ยอดคลิกย้อนหลัง 7 วันล่าสุด */}
                 <div>
                   <h4 className="text-sm font-bold text-gray-400 mb-3">📅 สถิติมาร์เก็ตติ้งรายวัน (7 วันล่าสุด)</h4>
                   <div className="grid grid-cols-7 gap-2 items-end bg-[#0B101B] p-4 rounded-2xl border border-gray-800 h-32 shadow-inner">
@@ -586,7 +584,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* แผนภูมิสรุปเวลาทองคำ 24 ชั่วโมงแบบสไลด์ดูง่าย */}
                 <div>
                   <h4 className="text-sm font-bold text-gray-400 mb-2">⏰ แผนภูมิวิเคราะห์พฤติกรรมลูกค้าเรียงตามชั่วโมง (ชั่วโมงทองคำ)</h4>
                   <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 bg-[#0B101B] p-4 rounded-2xl border border-gray-800 shadow-inner">
@@ -608,6 +605,50 @@ export default function Dashboard() {
                       })
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* 🔥 ส่วนที่ 3: สถิติแยกประเภทอุปกรณ์ผู้ใช้ (Module 3 แผงกราฟใหม่แกะกล่อง!) */}
+            {statsSubTab === 'devices' && (
+              <div className="space-y-4">
+                <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
+                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดสแกนคัดกรองรหัสอุปกรณ์รวม:</span>
+                  <span className="text-2xl font-black text-amber-400 tracking-wide">{deviceStatsData.totalDeviceClicks || 0} ครั้ง</span>
+                </div>
+
+                <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
+                  {deviceStatsData.stats && deviceStatsData.stats.length === 0 ? (
+                    <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลสถิติอุปกรณ์คลิกเข้ามา</p>
+                  ) : (
+                    deviceStatsData.stats?.map((item, idx) => {
+                      let barColor = 'from-purple-600 to-indigo-400';
+                      let iconTitle = '⚙️ OTHER DEVICES';
+
+                      if (item.platform === 'iOS') { barColor = 'from-slate-300 to-slate-100'; iconTitle = '🍏 APPLE iOS (iPhone / iPad)'; }
+                      else if (item.platform === 'Android') { barColor = 'from-green-500 to-lime-400'; iconTitle = '🤖 GOOGLE ANDROID'; }
+                      else if (item.platform === 'Desktop') { barColor = 'from-blue-600 to-cyan-400'; iconTitle = '💻 DESKTOP (Windows / Mac / Linux)'; }
+
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex justify-between text-sm font-bold text-gray-300">
+                            <span>{iconTitle}</span>
+                            <span className="text-white">{item.clicks} คลิก (<span className="text-amber-400">{item.percentage}%</span>)</span>
+                          </div>
+                          <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
+                            <div 
+                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
+                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
+                            >
+                              {item.percentage > 5 && (
+                                <span className="text-gray-900 text-xs font-black drop-shadow-md">{item.percentage}%</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}
