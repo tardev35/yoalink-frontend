@@ -6,11 +6,9 @@ import Swal from 'sweetalert2';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  // 🔥 เพิ่มเมนู 'report' เข้ามาในแท็บหลัก
   const [activeTab, setActiveTab] = useState('links'); 
   const [adminSubTab, setAdminSubTab] = useState('users'); 
   
-  // 📋 States สำหรับระบบจัดการลิงก์
   const [links, setLinks] = useState([]); 
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState(''); 
@@ -18,7 +16,6 @@ export default function Dashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [domains, setDomains] = useState([]);
   
-  // 👑 States สำหรับผู้ดูแลระบบ
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminDomains, setAdminDomains] = useState([]);
   const [adminTags, setAdminTags] = useState([]);
@@ -26,17 +23,16 @@ export default function Dashboard() {
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
   const [tagsInput, setTagsInput] = useState('');
-
-  // 🏆 States สำหรับ Leaderboard (Module 4)
   const [topLinks, setTopLinks] = useState([]);
 
-  // 🔥 States ศูนย์รวมสถิติ 3 โมดูลย่อยใน Modal
+  // 🔥 States ศูนย์รวมสถิติครบ 4 หมวดย่อยใน Modal (เพิ่ม Referrer)
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
-  const [statsSubTab, setStatsSubTab] = useState('channels'); 
+  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends, devices, referrers
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
   const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); 
   const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); 
+  const [referrerStatsData, setReferrerStatsData] = useState({ totalReferrerClicks: 0, stats: [] }); // 🔥 โมดูล 5
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -48,7 +44,7 @@ export default function Dashboard() {
     if (!token) { navigate('/'); return; }
     if (activeTab === 'links') fetchLinks();
     else if (activeTab === 'domains') fetchDomains();
-    else if (activeTab === 'report') fetchTopLinks(); // 🔥 โหลดข้อมูล Leaderboard
+    else if (activeTab === 'report') fetchTopLinks(); 
     else if (activeTab === 'admin') {
       if (adminSubTab === 'users') fetchAdminUsers();
       if (adminSubTab === 'domains') fetchAdminDomains();
@@ -65,14 +61,11 @@ export default function Dashboard() {
 
   const fetchDomains = async () => { try { const res = await axiosInstance.get('/api/domains', axiosConfig); setDomains(res.data || []); } catch (err) {} };
 
-  // 🏆 ฟังก์ชันโหลดข้อมูล Top Rank
   const fetchTopLinks = async () => {
     try {
       const res = await axiosInstance.get('/api/links/rank/top', axiosConfig);
       setTopLinks(res.data || []);
-    } catch (err) {
-      console.error('Error fetching top links');
-    }
+    } catch (err) { console.error('Error fetching top links'); }
   };
 
   const handleCreateLink = async (e) => {
@@ -96,16 +89,22 @@ export default function Dashboard() {
     Swal.fire({ icon: 'success', title: `ก๊อปปี้ลิงก์ช่องทาง ${channelCode.toUpperCase()} แล้ว!`, text: generatedLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
+  // 🔥 อัปเกรด: เปิด Modal วิเคราะห์ ดึงข้อมูลควบ 4 เส้นทาง (ช่องทาง, เวลาพีก, อุปกรณ์, โดเมนต้นทาง)
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
       setStatsSubTab('channels'); 
+      
       const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
       const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
       const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); 
+      const resReferrer = await axiosInstance.get(`/api/links/${linkItem.id}/referrer-stats`, axiosConfig); // 🔥 โมดูล 5
+      
       setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
       setTimeStatsData(resTime.data || { hourly: [], daily: [] });
       setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); 
+      setReferrerStatsData(resReferrer.data || { totalReferrerClicks: 0, stats: [] }); // 🔥 บันทึกลง State
+      
       setShowStatsModal(true);
     } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' }); }
   };
@@ -382,7 +381,7 @@ export default function Dashboard() {
       </div>
 
       {/* ==================================================================================== */}
-      {/* 📊 🔥 MODAL ร่องทอง: ศูนย์สถิติ 3 โมดูล */}
+      {/* 📊 🔥 MODAL ร่องทอง: รวม 4 โมดูล (เพิ่มแท็บ 4: โดเมนอ้างอิง Top Referrer) */}
       {/* ==================================================================================== */}
       {showStatsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -398,14 +397,15 @@ export default function Dashboard() {
 
             <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-800 pb-2">
               <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทาง</button>
-              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ 24 ชม.</button>
-              <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้งาน</button>
+              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ</button>
+              <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้</button>
+              <button onClick={() => setStatsSubTab('referrers')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'referrers' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนต้นทาง (Referrer)</button>
             </div>
 
             {statsSubTab === 'channels' && (
               <div className="space-y-4">
                 <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
-                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกพิสูจน์ทราบแหล่งที่มารวม:</span>
+                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกแยกค่ายรวม:</span>
                   <span className="text-2xl font-black text-[#61DAFB]">{channelStats.totalChannelClicks} ครั้ง</span>
                 </div>
                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
@@ -492,6 +492,47 @@ export default function Dashboard() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* 🔥 หน้าที่ 4: สถิติโดเมนต้นทางอ้างอิง (Top Referrer) แบบกราฟแท่งหรูหรา */}
+            {statsSubTab === 'referrers' && (
+              <div className="space-y-4">
+                <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
+                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกแกะรอยเว็บไซต์ต้นทางรวม:</span>
+                  <span className="text-2xl font-black text-indigo-400 tracking-wide">{referrerStatsData.totalReferrerClicks || 0} ครั้ง</span>
+                </div>
+
+                <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
+                  {referrerStatsData.stats && referrerStatsData.stats.length === 0 ? (
+                    <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลโดเมนอ้างอิง</p>
+                  ) : (
+                    referrerStatsData.stats?.map((item, idx) => {
+                      const isDirect = item.domain === 'Direct, Email, SMS';
+                      const barColor = isDirect ? 'from-gray-600 to-gray-500' : 'from-indigo-600 to-cyan-400';
+                      const domainTitle = isDirect ? '✉️ Direct Traffic (ไม่ผ่านเว็บอื่น)' : `🔗 ${item.domain}`;
+
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex justify-between text-sm font-bold text-gray-300">
+                            <span className={isDirect ? 'text-gray-500' : 'text-white'}>{domainTitle}</span>
+                            <span className="text-white">{item.clicks} คลิก (<span className="text-indigo-400">{item.percentage}%</span>)</span>
+                          </div>
+                          <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
+                            <div 
+                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
+                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
+                            >
+                              {item.percentage > 5 && (
+                                <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             )}
