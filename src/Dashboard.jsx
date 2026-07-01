@@ -14,12 +14,13 @@ export default function Dashboard() {
   const [selectedTag, setSelectedTag] = useState(''); 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalLinks, setTotalLinks] = useState(0); // 🔥 ระบบนับลิงก์รวม
+  const [totalLinks, setTotalLinks] = useState(0); 
   const [domains, setDomains] = useState([]);
   
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminDomains, setAdminDomains] = useState([]);
   const [adminTags, setAdminTags] = useState([]);
+  const [adminLogs, setAdminLogs] = useState([]); // 🔥 State ใหม่: สำหรับเก็บข้อมูลประวัติระบบ Audit Logs
 
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
@@ -33,7 +34,7 @@ export default function Dashboard() {
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
   const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); 
   const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); 
-  const [referrerStatsData, setReferrerStatsData] = useState({ totalReferrerClicks: 0, stats: [] });
+  const [referrerStatsData, setReferrerStatsData] = useState({ totalReferrerClicks: 0, stats: [] }); 
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -42,14 +43,22 @@ export default function Dashboard() {
   const uniqueTagsInView = Array.from(new Set(links.flatMap(l => l.tags || [])));
 
   useEffect(() => {
-    if (!token) { navigate('/'); return; }
-    if (activeTab === 'links') fetchLinks();
-    else if (activeTab === 'domains') fetchDomains();
-    else if (activeTab === 'report') fetchTopLinks(); 
-    else if (activeTab === 'admin') {
+    if (!token) {
+      navigate('/');
+      return;
+    }
+    
+    if (activeTab === 'links') {
+      fetchLinks();
+    } else if (activeTab === 'domains') {
+      fetchDomains();
+    } else if (activeTab === 'report') {
+      fetchTopLinks();
+    } else if (activeTab === 'admin') {
       if (adminSubTab === 'users') fetchAdminUsers();
       if (adminSubTab === 'domains') fetchAdminDomains();
       if (adminSubTab === 'tags') fetchAdminTags();
+      if (adminSubTab === 'logs') fetchAdminLogs(); // 🔥 ดักจับเมื่อแอดมินคลิกเข้าแท็บประวัติระบบ
     }
   }, [activeTab, adminSubTab, search, selectedTag, currentPage]);
 
@@ -58,17 +67,24 @@ export default function Dashboard() {
       const res = await axiosInstance.get(`/api/links?page=${currentPage}&limit=20&search=${search}&tag=${selectedTag}`, axiosConfig);
       setLinks(res.data.links || []); 
       setTotalPages(res.data.totalPages || 1);
-      setTotalLinks(res.data.totalLinks || 0); // 🔥 อัปเดตยอดรวมลิงก์
+      setTotalLinks(res.data.totalLinks || 0); 
     } catch (err) {}
   };
 
-  const fetchDomains = async () => { try { const res = await axiosInstance.get('/api/domains', axiosConfig); setDomains(res.data || []); } catch (err) {} };
+  const fetchDomains = async () => {
+    try {
+      const res = await axiosInstance.get('/api/domains', axiosConfig);
+      setDomains(res.data || []);
+    } catch (err) {}
+  };
 
   const fetchTopLinks = async () => {
     try {
       const res = await axiosInstance.get('/api/links/rank/top', axiosConfig);
       setTopLinks(res.data || []);
-    } catch (err) { console.error('Error fetching top links'); }
+    } catch (err) {
+      console.error('Error fetching top links');
+    }
   };
 
   const handleCreateLink = async (e) => {
@@ -76,8 +92,14 @@ export default function Dashboard() {
     try {
       await axiosInstance.post('/api/links', { originalUrl, alias, tags: tagsInput }, axiosConfig);
       Swal.fire({ icon: 'success', title: 'สร้างลิงก์สำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-      setOriginalUrl(''); setAlias(''); setTagsInput(''); setCurrentPage(1); fetchLinks();
-    } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' }); }
+      setOriginalUrl('');
+      setAlias('');
+      setTagsInput('');
+      setCurrentPage(1);
+      fetchLinks();
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' });
+    }
   };
 
   const handleCopy = (alias) => {
@@ -86,7 +108,6 @@ export default function Dashboard() {
     Swal.fire({ icon: 'success', title: 'คัดลอกลิงก์แล้ว!', text: fullLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  // 🔥 แปลงร่างลิงก์เป็น ?s=X
   const handleCopyChannelLink = (alias, channelType) => {
     const channelMap = { 'facebook': '1', 'tiktok': '2', 'line': '3', 'sms': '4', 'seo': '5' };
     const sCode = channelMap[channelType];
@@ -109,7 +130,9 @@ export default function Dashboard() {
       setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); 
       setReferrerStatsData(resReferrer.data || { totalReferrerClicks: 0, stats: [] }); 
       setShowStatsModal(true);
-    } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' }); }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' });
+    }
   };
 
   const handleEditTags = (linkId, currentTags) => {
@@ -119,7 +142,11 @@ export default function Dashboard() {
       input: 'text',
       inputValue: tagsString,
       inputPlaceholder: 'พิมพ์แท็กใหม่คั่นด้วยคอมมา',
-      background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#144EE3'
+      background: '#181E29',
+      color: '#C9CED6',
+      showCancelButton: true,
+      confirmButtonText: 'บันทึก',
+      confirmButtonColor: '#144EE3'
     }).then(async (result) => {
       if (result.isConfirmed) {
         await axiosInstance.put(`/api/links/${linkId}/tags`, { tags: result.value }, axiosConfig);
@@ -131,13 +158,29 @@ export default function Dashboard() {
 
   const handleDeleteLink = (id) => {
     Swal.fire({ title: 'ลบลิงก์นี้?', background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
-      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/links/${id}`, axiosConfig); fetchLinks(); fetchTopLinks(); } });
+      .then(async (res) => {
+        if (res.isConfirmed) {
+          await axiosInstance.delete(`/api/links/${id}`, axiosConfig);
+          fetchLinks();
+          fetchTopLinks();
+        }
+      });
   };
 
   // ================= ADMIN FUNCTIONS =================
   const fetchAdminUsers = async () => { try { const res = await axiosInstance.get('/api/admin/users', axiosConfig); setAdminUsers(res.data); } catch (err) { setActiveTab('links'); } };
   const fetchAdminDomains = async () => { try { const res = await axiosInstance.get('/api/admin/domains', axiosConfig); setAdminDomains(res.data); } catch (err) {} };
   const fetchAdminTags = async () => { try { const res = await axiosInstance.get('/api/admin/tags', axiosConfig); setAdminTags(res.data); } catch (err) {} };
+  
+  // 🔥 ฟังก์ชันใหม่: วิ่งไปดึงรายงานบันทึกประวัติการกระทำของระบบจากหลังบ้าน
+  const fetchAdminLogs = async () => {
+    try {
+      const res = await axiosInstance.get('/api/admin/logs', axiosConfig);
+      setAdminLogs(res.data || []);
+    } catch (err) {
+      console.error('Error fetching system audit logs');
+    }
+  };
 
   const handleAdminToggleRole = (id, role) => {
     const newRole = role === 'admin' ? 'user' : 'admin';
@@ -259,15 +302,12 @@ export default function Dashboard() {
 
             <div className="lg:col-span-3 bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                
-                {/* 🔥 ยอดนับจำนวนลิงก์รวมทั้งหมดแบบ Realtime */}
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   📋 รายการลิงก์ย่อในระบบ
                   <span className="text-xs font-normal text-gray-400 bg-[#0B101B] px-2.5 py-1 rounded-md border border-gray-800/60">
                     ทั้งหมด {totalLinks.toLocaleString()} ลิงก์
                   </span>
                 </h2>
-
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                   {selectedTag && ( <button onClick={() => setSelectedTag('')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition">❌ ล้างแท็ก: #{selectedTag}</button> )}
                   <select value={selectedTag} onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }} className="px-4 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none cursor-pointer focus:border-gray-600">
@@ -336,7 +376,7 @@ export default function Dashboard() {
                 </table>
               </div>
 
-              {/* 🔥 แผงควบคุมสลับหน้า (Pagination UI) */}
+              {/* แผงควบคุมสลับหน้า (Pagination UI) */}
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4 bg-[#0B101B] p-4 rounded-xl border border-gray-800/60">
                   <span className="text-sm text-gray-400">
@@ -388,15 +428,96 @@ export default function Dashboard() {
 
         {/* 👑 TAB 3: ADMIN DASHBOARD */}
         {activeTab === 'admin' && user.role === 'admin' && (
-          <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
-            <div className="flex gap-4 mb-8 border-b border-gray-800 pb-3">
-              <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>👥 สมาชิกทั้งหมด</button>
-              <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>🌐 โดเมนทั้งหมด</button>
-              <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
+          <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg animate-fade-in">
+            {/* 🔥 อัปเกรดซับแท็บ: เพิ่มเมนู 📝 ประวัติระบบ ให้แอดมินกดดูได้แบบ Flexible */}
+            <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-3">
+              <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>👥 สมาชิกทั้งหมด</button>
+              <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนทั้งหมด</button>
+              <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
+              <button onClick={() => setAdminSubTab('logs')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'logs' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>📝 ประวัติระบบ (Audit Logs)</button>
             </div>
+
             {adminSubTab === 'users' && ( <table className="w-full text-left text-base"><tbody>{adminUsers.map(u => ( <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{u.username}</td><td className="p-4 text-center"><button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-3 py-1.5 rounded-xl text-sm mr-2">สลับสิทธิ์</button><button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
             {adminSubTab === 'domains' && ( <table className="w-full text-left text-base"><tbody>{adminDomains.map(d => ( <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{d.name}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">แก้ไข</button><button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
             {adminSubTab === 'tags' && ( <table className="w-full text-left text-base"><tbody>{adminTags.map(t => ( <tr key={t} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white">#{t}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditTag(t)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">เปลี่ยนชื่อ</button><button onClick={() => handleAdminDeleteTag(t)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
+
+            {/* 🔥 ตารางวาดใหม่ระดับพรีเมียม: สำหรับโชว์ Audit Logs ดึง JSON มาถอดรหัสเป็นไทย */}
+            {adminSubTab === 'logs' && (
+              <div className="overflow-x-auto bg-[#0B101B] border border-gray-800/60 rounded-2xl p-2 shadow-inner">
+                <table className="w-full text-left text-base border-collapse">
+                  <thead>
+                    <tr className="bg-gray-800/40 text-sm font-bold text-gray-400 border-b border-gray-800">
+                      <th className="p-4 w-[18%]">⏰ วันเวลา (Timestamp)</th>
+                      <th className="p-4 w-[15%]">👤 ผู้ดำเนินงาน</th>
+                      <th className="p-4 w-[20%]">⚙️ การกระทำ</th>
+                      <th className="p-4 w-[47%]">📝 รายละเอียดกิจกรรม (Activity Details)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60 text-sm text-gray-300">
+                    {adminLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="text-center py-14 text-gray-500 italic font-medium">📭 ระบบยังไม่มีข้อมูลประวัติกิจกรรมบันทึกไว้</td>
+                      </tr>
+                    ) : (
+                      adminLogs.map(log => {
+                        let actionBadge = 'bg-gray-800 text-gray-400';
+                        let actionText = log.action;
+
+                        // 🎨 สลับธีมสีกล่องตามชนิด Action
+                        if (log.action === 'CREATE_LINK') { actionBadge = 'bg-green-500/10 text-green-400 border border-green-500/20'; actionText = '✨ สร้างลิงก์ย่อใหม่'; }
+                        else if (log.action === 'DELETE_LINK') { actionBadge = 'bg-red-500/10 text-red-400 border border-red-500/20'; actionText = '🗑️ ลบข้อมูลลิงก์'; }
+                        else if (log.action === 'UPDATE_TAGS') { actionBadge = 'bg-blue-500/10 text-blue-400 border border-blue-500/20'; actionText = '✏️ อัปเดตแท็กรายลิงก์'; }
+                        else if (log.action === 'UPDATE_ROLE') { actionBadge = 'bg-purple-500/10 text-purple-400 border border-purple-500/20'; actionText = '👥 เปลี่ยนสิทธิ์สมาชิก'; }
+                        else if (log.action === 'DELETE_USER') { actionBadge = 'bg-red-600/10 text-red-500 border border-red-600/20'; actionText = '❌ ลบยูสเซอร์สมาชิก'; }
+                        else if (log.action === 'CREATE_DOMAIN') { actionBadge = 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'; actionText = '🌐 เพิ่ม Root Domain'; }
+                        else if (log.action === 'UPDATE_DOMAIN') { actionBadge = 'bg-amber-500/10 text-amber-500 border border-amber-500/20'; actionText = '🔄 เปลี่ยนชื่อโดเมนหลัก'; }
+                        else if (log.action === 'DELETE_DOMAIN') { actionBadge = 'bg-orange-500/10 text-orange-400 border border-orange-500/20'; actionText = '🗑️ ลบโดเมนหลัก'; }
+                        else if (log.action === 'RENAME_TAG') { actionBadge = 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'; actionText = '🏷️ แก้ไขชื่อแท็กส่วนกลาง'; }
+                        else if (log.action === 'DELETE_TAG') { actionBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20'; actionText = '🗑️ ลบแท็กส่วนกลาง'; }
+
+                        // 🔍 ถอดรหัสโครงสร้าง JSON ออกมาเป็นภาษาพูดให้หัวหน้าดูง่ายๆ
+                        let textDesc = '';
+                        if (log.details) {
+                          if (log.action === 'CREATE_LINK' || log.action === 'DELETE_LINK') {
+                            textDesc = `ชื่อย่อ: yoalink.com/${log.details.alias}  ➔  ลิ้งก์หลัก: ${log.details.targetUrl}`;
+                          } else if (log.action === 'UPDATE_TAGS') {
+                            textDesc = `แก้ไขลิงก์ yoalink.com/${log.details.alias}  ➔  จัดกลุ่มกลุ่มแท็กใหม่เป็น: [${log.details.newTags?.join(', ') || 'ไม่มีแท็ก'}]`;
+                          } else if (log.action === 'UPDATE_DOMAIN') {
+                            textDesc = `หักคอเปลี่ยนชื่อโดเมนหลักจาก: "${log.details.fromDomain}"  ➔  เป็นชื่อใหม่: "${log.details.toDomain}" (ระดมอัปเดตลิงก์ย่อเบื้องหลัง)`;
+                          } else if (log.action === 'UPDATE_ROLE') {
+                            textDesc = `เปลี่ยนสิทธิ์ของพนักงาน: "${log.details.targetUser}" จากระดับ [${log.details.fromRole.toUpperCase()}] ➔ เป็นระดับ [${log.details.toRole.toUpperCase()}]`;
+                          } else if (log.action === 'DELETE_USER') {
+                            textDesc = `ไล่ลบยูสเซอร์สมาชิกออกจากสารบบ: "${log.details.deletedUser}"`;
+                          } else if (log.action === 'CREATE_DOMAIN' || item.action === 'DELETE_DOMAIN') {
+                            textDesc = `ชื่อ Root Domain ที่จัดการ: ${log.details.domain}`;
+                          } else if (log.action === 'RENAME_TAG') {
+                            textDesc = `เปลี่ยนชื่อป้ายกำกับส่วนกลางจาก #${log.details.oldTag} ➔ #${log.details.newTag}`;
+                          } else if (log.action === 'DELETE_TAG') {
+                            textDesc = `ลบหมวดหมู่ป้ายกำกับส่วนกลาง: #${log.details.tag}`;
+                          } else {
+                            textDesc = JSON.stringify(log.details);
+                          }
+                        }
+
+                        // จัดฟอร์แมตเวลาภาษาไทยให้เนียนตา
+                        const displayTime = new Date(log.createdAt).toLocaleString('th-TH', {
+                          day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+                        });
+
+                        return (
+                          <tr key={log.id} className="border-b border-gray-800/40 hover:bg-gray-800/30 transition-all duration-300">
+                            <td className="p-4 font-mono text-gray-500 text-xs">{displayTime}</td>
+                            <td className="p-4 font-bold text-white">👤 {log.User?.username || 'ระบบส่วนกลาง'}</td>
+                            <td className="p-4"><span className={`px-2.5 py-1 rounded-md text-xs font-black tracking-wide ${actionBadge}`}>{actionText}</span></td>
+                            <td className="p-4 font-medium text-gray-400 max-w-xl truncate" title={textDesc}>{textDesc}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
