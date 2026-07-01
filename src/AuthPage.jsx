@@ -8,6 +8,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -89,17 +90,30 @@ export default function AuthPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-[#C9CED6] mb-2">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full px-5 py-4 bg-[#0B101B] border border-gray-800 rounded-xl text-[#C9CED6] focus:outline-none focus:ring-2 focus:ring-[#144EE3] focus:bg-[#181E29] transition-all duration-200 text-sm"
-              />
-            </div>
+           <div>
+  <label className="block text-sm font-semibold text-gray-400 mb-2">รหัสผ่าน (Password)</label>
+  
+  {/* 🔥 2. สร้างกล่องครอบช่องกรอก (relative) เพื่อให้ปุ่มตาวางซ้อนทับได้ */}
+  <div className="relative">
+    <input
+      type={showPassword ? "text" : "password"} // ถ้ากดปุ่มให้เปลี่ยนเป็นข้อความธรรมดา
+      required
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      placeholder="••••••••"
+      className="w-full px-4 py-3.5 bg-[#0B101B] border border-gray-800 rounded-xl text-base outline-none text-white focus:ring-2 focus:ring-[#144EE3] pr-12" 
+    />
+    
+    {/* 🔥 3. ปุ่มกดเปิด/ปิดตา (วางชิดขวา absolute) */}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-xl text-gray-500 hover:text-[#61DAFB] transition-colors cursor-pointer"
+    >
+      {showPassword ? "🙈" : "👁️"}
+    </button>
+  </div>
+</div>
 
             <button 
               type="submit" 
