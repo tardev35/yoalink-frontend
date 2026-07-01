@@ -6,48 +6,49 @@ import Swal from 'sweetalert2';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  // 🔥 เพิ่มเมนู 'report' เข้ามาในแท็บหลัก
   const [activeTab, setActiveTab] = useState('links'); 
-  const [adminSubTab, setAdminSubTab] = useState('users'); // users, domains, tags
+  const [adminSubTab, setAdminSubTab] = useState('users'); 
   
   // 📋 States สำหรับระบบจัดการลิงก์
   const [links, setLinks] = useState([]); 
   const [search, setSearch] = useState('');
-  const [selectedTag, setSelectedTag] = useState(''); // เก็บแท็กที่เลือกเพื่อกรองข้อมูล
+  const [selectedTag, setSelectedTag] = useState(''); 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [domains, setDomains] = useState([]);
   
-  // 👑 States สำหรับผู้ดูแลระบบ (Admin Dashboard)
+  // 👑 States สำหรับผู้ดูแลระบบ
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminDomains, setAdminDomains] = useState([]);
   const [adminTags, setAdminTags] = useState([]);
 
-  // 📝 States สำหรับฟอร์มสร้างลิงก์ย่อ
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // 🔥 States เพิ่มเติมสำหรับระบบสถิติโมดูล 1, โมดูล 2 และโมดูล 3
+  // 🏆 States สำหรับ Leaderboard (Module 4)
+  const [topLinks, setTopLinks] = useState([]);
+
+  // 🔥 States ศูนย์รวมสถิติ 3 โมดูลย่อยใน Modal
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
-  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends, devices
+  const [statsSubTab, setStatsSubTab] = useState('channels'); 
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
-  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); // สถิติเวลาโมดูล 2
-  const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); // 🔥 โมดูล 3: State อุปกรณ์เพิ่มเข้ามาใหม่
+  const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); 
+  const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); 
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-  // รวบรวมแท็กทั้งหมดที่มีในรายการปัจจุบันมาทำเป็นปุ่มตัวเลือกกรอกข้อมูลแบบด่วน
-  const uniqueTagsInView = Array.from(
-    new Set(links.flatMap(l => l.tags || []))
-  );
+  const uniqueTagsInView = Array.from(new Set(links.flatMap(l => l.tags || [])));
 
   useEffect(() => {
     if (!token) { navigate('/'); return; }
     if (activeTab === 'links') fetchLinks();
     else if (activeTab === 'domains') fetchDomains();
+    else if (activeTab === 'report') fetchTopLinks(); // 🔥 โหลดข้อมูล Leaderboard
     else if (activeTab === 'admin') {
       if (adminSubTab === 'users') fetchAdminUsers();
       if (adminSubTab === 'domains') fetchAdminDomains();
@@ -59,17 +60,18 @@ export default function Dashboard() {
     try {
       const res = await axiosInstance.get(`/api/links?page=${currentPage}&limit=20&search=${search}&tag=${selectedTag}`, axiosConfig);
       setLinks(res.data.links || []); setTotalPages(res.data.totalPages || 1);
-    } catch (err) {
-      console.error('Error fetching links:', err);
-    }
+    } catch (err) {}
   };
 
-  const fetchDomains = async () => {
+  const fetchDomains = async () => { try { const res = await axiosInstance.get('/api/domains', axiosConfig); setDomains(res.data || []); } catch (err) {} };
+
+  // 🏆 ฟังก์ชันโหลดข้อมูล Top Rank
+  const fetchTopLinks = async () => {
     try {
-      const res = await axiosInstance.get('/api/domains', axiosConfig);
-      setDomains(res.data || []);
+      const res = await axiosInstance.get('/api/links/rank/top', axiosConfig);
+      setTopLinks(res.data || []);
     } catch (err) {
-      console.error('Error fetching domains:', err);
+      console.error('Error fetching top links');
     }
   };
 
@@ -79,177 +81,80 @@ export default function Dashboard() {
       await axiosInstance.post('/api/links', { originalUrl, alias, tags: tagsInput }, axiosConfig);
       Swal.fire({ icon: 'success', title: 'สร้างลิงก์สำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
       setOriginalUrl(''); setAlias(''); setTagsInput(''); setCurrentPage(1); fetchLinks();
-    } catch (err) { 
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' }); 
-    }
+    } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' }); }
   };
 
-  // 📋 ฟังก์ชันคัดลอกลิงก์ใช้งานจริง (พ่วง https:// อัตโนมัติ)
   const handleCopy = (alias) => {
     const fullLink = `https://yoalink.com/${alias}`;
     navigator.clipboard.writeText(fullLink);
     Swal.fire({ icon: 'success', title: 'คัดลอกลิงก์แล้ว!', text: fullLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: กดก๊อปปี้แยกค่ายการตลาด พ่วง ?src=xx ทันที
   const handleCopyChannelLink = (alias, channelCode) => {
     const generatedLink = `https://yoalink.com/${alias}?src=${channelCode}`;
     navigator.clipboard.writeText(generatedLink);
-    Swal.fire({
-      icon: 'success',
-      title: `ก๊อปปี้ลิงก์ช่องทาง ${channelCode.toUpperCase()} แล้ว!`,
-      text: generatedLink,
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 2000,
-      background: '#181E29',
-      color: '#C9CED6'
-    });
+    Swal.fire({ icon: 'success', title: `ก๊อปปี้ลิงก์ช่องทาง ${channelCode.toUpperCase()} แล้ว!`, text: generatedLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  // 🔥 ฟังก์ชันหน้าบ้าน: ดึงข้อมูลสถิติช่องทางโมดูล 1 + สถิติเวลาโมดูล 2 + สถิติอุปกรณ์โมดูล 3 มารันสถิติพร้อมกัน
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
-      setStatsSubTab('channels'); // ตั้งค่าเริ่มต้นให้ส่องโมดูลช่องทางก่อน
-      
-      // ดึงสถิติมาร์เก็ตติ้งทั้ง 3 รูปแบบมาเก็บลงสเตทพร้อมหน้าพร้อมตา
+      setStatsSubTab('channels'); 
       const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
       const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
-      const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); // 🔥 ดึงข้อมูลอุปกรณ์โมดูล 3
-      
+      const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); 
       setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
       setTimeStatsData(resTime.data || { hourly: [], daily: [] });
-      setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); // 🔥 บันทึกลงสเตทโมดูล 3
+      setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); 
       setShowStatsModal(true);
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' });
-    }
+    } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' }); }
   };
 
   const handleDeleteLink = (id) => {
     Swal.fire({ title: 'ลบลิงก์นี้?', background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
-      .then(async (res) => {
-        if (res.isConfirmed) { 
-          try {
-            await axiosInstance.delete(`/api/links/${id}`, axiosConfig); 
-            fetchLinks(); 
-          } catch (err) {
-            Swal.fire('ผิดพลาด', 'ไม่สามารถลบลิงก์ได้', 'error');
-          }
-        }
-      });
+      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/links/${id}`, axiosConfig); fetchLinks(); fetchTopLinks(); } });
   };
 
   // ================= ADMIN FUNCTIONS =================
-  const fetchAdminUsers = async () => { 
-    try { const res = await axiosInstance.get('/api/admin/users', axiosConfig); setAdminUsers(res.data); } catch (err) { setActiveTab('links'); } 
-  };
-  const fetchAdminDomains = async () => { 
-    try { const res = await axiosInstance.get('/api/admin/domains', axiosConfig); setAdminDomains(res.data); } catch (err) {} 
-  };
-  const fetchAdminTags = async () => { 
-    try { const res = await axiosInstance.get('/api/admin/tags', axiosConfig); setAdminTags(res.data); } catch (err) {} 
-  };
+  const fetchAdminUsers = async () => { try { const res = await axiosInstance.get('/api/admin/users', axiosConfig); setAdminUsers(res.data); } catch (err) { setActiveTab('links'); } };
+  const fetchAdminDomains = async () => { try { const res = await axiosInstance.get('/api/admin/domains', axiosConfig); setAdminDomains(res.data); } catch (err) {} };
+  const fetchAdminTags = async () => { try { const res = await axiosInstance.get('/api/admin/tags', axiosConfig); setAdminTags(res.data); } catch (err) {} };
 
   const handleAdminToggleRole = (id, role) => {
     const newRole = role === 'admin' ? 'user' : 'admin';
     Swal.fire({ title: `เปลี่ยนสิทธิ์เป็น ${newRole.toUpperCase()}?`, background: '#181E29', color: '#C9CED6', showCancelButton: true })
-      .then(async (res) => { 
-        if (res.isConfirmed) { 
-          await axiosInstance.put(`/api/admin/users/${id}/role`, { role: newRole }, axiosConfig); 
-          fetchAdminUsers(); 
-        } 
-      });
+      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.put(`/api/admin/users/${id}/role`, { role: newRole }, axiosConfig); fetchAdminUsers(); } });
   };
 
   const handleAdminDeleteUser = (id, username) => {
-    Swal.fire({ 
-      title: `ลบสมาชิก: ${username}?`, 
-      text: "การลบสมาชิกนี้จะทำให้สิทธิ์เข้าใช้งานระบบของเขาถูกทำลายทันที!",
-      icon: 'warning',
-      background: '#181E29', 
-      color: '#C9CED6', 
-      showCancelButton: true,
-      confirmButtonColor: '#EB568E',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'ใช่, ลบออกเลย!',
-      cancelButtonText: 'ยกเลิก'
-    }).then(async (res) => {
-      if (res.isConfirmed) {
-        try {
-          await axiosInstance.delete(`/api/admin/users/${id}`, axiosConfig);
-          Swal.fire({ icon: 'success', title: 'ลบสมาชิกเรียบร้อยแล้ว!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-          fetchAdminUsers(); 
-        } catch (err) {
-          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบสมาชิกรายนี้ได้', background: '#181E29', color: '#C9CED6' });
-        }
-      }
-    });
+    Swal.fire({ title: `ลบสมาชิก: ${username}?`, text: "สิทธิ์การเข้าใช้งานระบบจะถูกทำลายทันที!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
+      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/admin/users/${id}`, axiosConfig); fetchAdminUsers(); } });
   };
 
   const handleAdminEditDomain = (id, currentName) => {
     Swal.fire({ title: 'แก้ไข Root Domain', input: 'text', inputValue: currentName, background: '#181E29', color: '#C9CED6', showCancelButton: true })
-      .then(async (res) => {
-        if (res.isConfirmed && res.value) { 
-          await axiosInstance.put(`/api/admin/domains/${id}`, { name: res.value }, axiosConfig); 
-          Swal.fire({ icon: 'success', title: 'อัปเดตโดเมนสำเร็จ!', background: '#181E29', color: '#C9CED6', timer: 1500 });
-          fetchAdminDomains(); 
-        }
-      });
+      .then(async (res) => { if (res.isConfirmed && res.value) { await axiosInstance.put(`/api/admin/domains/${id}`, { name: res.value }, axiosConfig); fetchAdminDomains(); } });
   };
 
   const handleAdminDeleteDomain = (id, domainName) => {
-    Swal.fire({ 
-      title: `ลบโดเมนหลัก: ${domainName}?`, 
-      text: "โปรดตรวจสอบว่าไม่มีลิงก์ย่อตัวไหนของสมาชิกกำลังเรียกใช้โดเมนนี้อยู่!",
-      icon: 'warning',
-      background: '#181E29', 
-      color: '#C9CED6', 
-      showCancelButton: true,
-      confirmButtonColor: '#EB568E',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'ใช่, ลบโดเมนเลย!',
-      cancelButtonText: 'ยกเลิก'
-    }).then(async (res) => {
-      if (res.isConfirmed) {
-        try {
-          await axiosInstance.delete(`/api/admin/domains/${id}`, axiosConfig);
-          Swal.fire({ icon: 'success', title: 'ลบโดเมนหลักสำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-          fetchAdminDomains(); 
-        } catch (err) {
-          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถลบโดเมนหลักนี้ได้', background: '#181E29', color: '#C9CED6' });
-        }
-      }
-    });
+    Swal.fire({ title: `ลบโดเมนหลัก: ${domainName}?`, text: "โปรดตรวจสอบว่าไม่มีลิงก์ใช้งานโดเมนนี้อยู่!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
+      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/admin/domains/${id}`, axiosConfig); fetchAdminDomains(); } });
   };
 
   const handleAdminEditTag = (oldTag) => {
     Swal.fire({ title: `เปลี่ยนชื่อแท็ก: #${oldTag}`, input: 'text', inputValue: oldTag, background: '#181E29', color: '#C9CED6', showCancelButton: true })
-      .then(async (res) => {
-        if (res.isConfirmed && res.value && res.value !== oldTag) { 
-          await axiosInstance.put(`/api/admin/tags`, { oldTag, newTag: res.value }, axiosConfig); 
-          fetchAdminTags(); 
-        }
-      });
+      .then(async (res) => { if (res.isConfirmed && res.value && res.value !== oldTag) { await axiosInstance.put(`/api/admin/tags`, { oldTag, newTag: res.value }, axiosConfig); fetchAdminTags(); } });
   };
 
   const handleAdminDeleteTag = (tag) => {
     Swal.fire({ title: `ลบแท็ก #${tag} ออกจากทุกลิงก์?`, background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
-      .then(async (res) => {
-        if (res.isConfirmed) { 
-          await axiosInstance.delete(`/api/admin/tags`, { data: { tag }, ...axiosConfig }); 
-          fetchAdminTags(); 
-        }
-      });
+      .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/admin/tags`, { data: { tag }, ...axiosConfig }); fetchAdminTags(); } });
   };
 
   const handleLogout = () => { localStorage.clear(); navigate('/'); };
 
   return (
     <div className="min-h-screen pb-12 bg-[#0B101B] text-[#C9CED6] font-sans">
-      {/* TOP NAVBAR */}
       <nav className="bg-[#181E29] border-b border-gray-800 relative overflow-hidden shadow-xl">
         <div className="max-w-[1490px] mx-auto px-6 py-5 flex justify-between items-center relative z-10">
           <h1 className="text-3xl font-black flex items-center gap-2 text-[#61DAFB]">Yoalink.com</h1>
@@ -260,17 +165,109 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* MAIN CONTAINER */}
       <div className="max-w-[1640px] mx-auto px-6 mt-10">
         
-        {/* MAIN NAVIGATION TABS */}
-        <div className="flex gap-6 mb-8 border-b border-gray-800 pb-3">
+        {/* 🔥 MAIN NAVIGATION TABS */}
+        <div className="flex flex-wrap gap-6 mb-8 border-b border-gray-800 pb-3">
           <button onClick={() => setActiveTab('links')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'links' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🔗 จัดการลิงก์</button>
           <button onClick={() => setActiveTab('domains')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'domains' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนของฉัน</button>
+          <button onClick={() => setActiveTab('report')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition flex items-center gap-2 ${activeTab === 'report' ? 'text-amber-400 border-b-4 border-amber-400' : 'text-gray-400 hover:text-white'}`}>🏆 Top Rank Leaderboard</button>
           {user.role === 'admin' && (
             <button onClick={() => setActiveTab('admin')} className={`pb-3 px-6 text-lg font-bold flex items-center gap-2 cursor-pointer transition ${activeTab === 'admin' ? 'text-[#144EE3] border-b-4 border-[#144EE3]' : 'text-gray-400 hover:text-white'}`}>👑 Admin Dashboard</button>
           )}
         </div>
+
+        {/* 🏆 TAB: TOP RANK LEADERBOARD */}
+        {activeTab === 'report' && (
+          <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg animate-fade-in min-h-[500px]">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-500 to-orange-500 inline-block mb-3 drop-shadow-lg">
+                🏆 Top Score Leaderboard
+              </h2>
+              <p className="text-lg text-gray-400">
+                {user.role === 'admin' 
+                  ? 'จัดอันดับทราฟฟิกชอร์ตลิงก์ที่ร้อนแรงที่สุดในระบบ (แข่งขันระดับองค์กร)' 
+                  : 'จัดอันดับสุดยอดชอร์ตลิงก์ของคุณที่ทำผลงานได้ดีที่สุด'}
+              </p>
+            </div>
+
+            <div className="max-w-4xl mx-auto space-y-4">
+              {topLinks.length === 0 ? (
+                <div className="text-center py-20 text-gray-500">
+                  <span className="text-5xl block mb-4">📭</span>
+                  <p className="text-xl font-bold">ยังไม่มีข้อมูลการคลิกในระบบ</p>
+                  <p>เริ่มนำลิงก์ไปแชร์เพื่อไต่อันดับได้เลย!</p>
+                </div>
+              ) : (
+                topLinks.map((link, index) => {
+                  const rank = index + 1;
+                  const maxClicks = topLinks[0]?.clicks || 1;
+                  const widthPer = Math.max((link.clicks / maxClicks) * 100, 2); 
+                  
+                  let barColor = 'from-blue-600 to-cyan-400';
+                  let rankBadge = 'bg-gray-800 text-gray-400';
+                  let crown = '';
+
+                  if (rank === 1) { 
+                    barColor = 'from-yellow-400 to-orange-500'; 
+                    rankBadge = 'bg-yellow-500/20 text-yellow-400 text-2xl shadow-[0_0_20px_rgba(250,204,21,0.5)] border border-yellow-500/50'; 
+                    crown = '👑';
+                  } else if (rank === 2) { 
+                    barColor = 'from-gray-300 to-gray-500'; 
+                    rankBadge = 'bg-gray-400/20 text-gray-300 text-xl shadow-[0_0_15px_rgba(156,163,175,0.4)] border border-gray-400/50'; 
+                  } else if (rank === 3) { 
+                    barColor = 'from-orange-400 to-red-500'; 
+                    rankBadge = 'bg-orange-500/20 text-orange-400 text-xl shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-orange-500/50'; 
+                  }
+
+                  return (
+                    <div key={link.id} className="relative bg-[#0B101B] p-5 rounded-2xl border border-gray-800 flex items-center gap-6 hover:border-gray-600 transition-colors group">
+                      <div className={`flex items-center justify-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>
+                        {crown} #{rank}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-3 gap-2">
+                          <div className="truncate pr-4">
+                            <h4 className="text-xl font-bold text-white mb-1 truncate">
+                              <a href={`https://yoalink.com/${link.alias}`} target="_blank" rel="noreferrer" className="hover:text-[#61DAFB] transition-colors">
+                                yoalink.com/{link.alias}
+                              </a>
+                            </h4>
+                            <p className="text-sm text-gray-500 truncate">{link.originalUrl}</p>
+                            
+                            {user.role === 'admin' && (
+                              <p className="text-xs text-indigo-400 font-bold mt-1.5 flex items-center gap-1">
+                                👤 สร้างโดย: <span className="text-white bg-indigo-500/20 px-2 py-0.5 rounded-md">{link.User?.username || 'ระบบ'}</span>
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="text-left sm:text-right shrink-0">
+                            <span className="text-3xl font-black text-white tracking-wide">{link.clicks.toLocaleString()} <span className="text-sm text-gray-400 font-normal">คลิก</span></span>
+                          </div>
+                        </div>
+
+                        <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden border border-gray-800 shadow-inner">
+                          <div 
+                            className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 relative`} 
+                            style={{ width: `${widthPer}%` }}
+                          >
+                            <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button onClick={() => handleOpenStats(link)} className="hidden sm:flex absolute right-5 top-5 bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-xl text-sm font-bold transition opacity-0 group-hover:opacity-100 cursor-pointer">
+                        📊 เจาะลึก
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 🔗 TAB 1: จัดการลิงก์ย่อ */}
         {activeTab === 'links' && (
@@ -298,14 +295,10 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <h2 className="text-2xl font-bold text-white">📋 รายการลิงก์ย่อในระบบ</h2>
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                  {selectedTag && (
-                    <button onClick={() => setSelectedTag('')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition">❌ ล้างแท็ก: #{selectedTag}</button>
-                  )}
+                  {selectedTag && ( <button onClick={() => setSelectedTag('')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition">❌ ล้างแท็ก: #{selectedTag}</button> )}
                   <select value={selectedTag} onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }} className="px-4 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none cursor-pointer focus:border-gray-600">
                     <option value="">🏷️ กรองตามแท็กทั้งหมด</option>
-                    {uniqueTagsInView.map(t => (
-                      <option key={t} value={t}>#{t}</option>
-                    ))}
+                    {uniqueTagsInView.map(t => ( <option key={t} value={t}>#{t}</option> ))}
                   </select>
                   <input type="text" placeholder="🔍 ค้นหา (ชื่อย่อ / URL ปลายทาง)..." value={search} onChange={(e) => {setSearch(e.target.value); setCurrentPage(1);}} className="px-5 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-white outline-none min-w-[260px] focus:border-gray-600" />
                 </div>
@@ -317,30 +310,23 @@ export default function Dashboard() {
                     <tr className="bg-gray-800/60 text-sm font-bold text-gray-300 border-b border-gray-700">
                       <th className="p-4 w-[12%]">โดเมนหลัก</th>
                       <th className="p-4 w-[38%]">ลิงก์ย่อ / ปุ่มก๊อปแยกค่ายการตลาดด่วน (Marketing Menu)</th>
-                      <th className="p-4 w-[12%]">แท็ก (คลิกเพื่อค้นหา)</th>
+                      <th className="p-4 w-[12%]">แท็ก</th>
                       {user.role === 'admin' && <th className="p-4 w-[12%] text-indigo-400">ผู้สร้าง (Owner)</th>}
                       <th className="p-4 w-[26%] text-center">จัดการลิงก์</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800 text-base">
-                    {links.length === 0 ? (
-                      <tr><td colSpan={user.role === 'admin' ? "5" : "4"} className="text-center py-10 text-gray-400 font-medium">📭 ไม่พบข้อมูลรายการลิงก์ตามที่ค้นหาในระบบ</td></tr>
-                    ) : (
+                    {links.length === 0 ? ( <tr><td colSpan={user.role === 'admin' ? "5" : "4"} className="text-center py-10 text-gray-400 font-medium">📭 ไม่พบข้อมูลรายการลิงก์</td></tr> ) : (
                       links.map(l => (
                         <tr key={l.id} className="hover:bg-gray-800/30 transition-colors">
                           <td className="p-4 font-bold text-gray-300 text-sm tracking-wide">{l.Domain?.name || '-'}</td>
                           <td className="p-4">
                             <div className="flex flex-col gap-3">
                               <div className="flex items-center gap-3">
-                                <a href={`https://yoalink.com/${l.alias}`} target="_blank" rel="noreferrer" className="text-[#61DAFB] text-lg font-bold hover:underline tracking-wide">
-                                  https://yoalink.com/{l.alias}
-                                </a>
-                                <button onClick={() => handleCopy(l.alias)} className="flex items-center gap-1.5 bg-[#144EE3] hover:bg-[#1140C7] text-white px-3 py-1.5 rounded-lg text-sm font-bold transition shadow-md cursor-pointer">
-                                  📋 Copy
-                                </button>
+                                <a href={`https://yoalink.com/${l.alias}`} target="_blank" rel="noreferrer" className="text-[#61DAFB] text-lg font-bold hover:underline tracking-wide">https://yoalink.com/{l.alias}</a>
+                                <button onClick={() => handleCopy(l.alias)} className="flex items-center gap-1.5 bg-[#144EE3] hover:bg-[#1140C7] text-white px-3 py-1.5 rounded-lg text-sm font-bold transition shadow-md cursor-pointer">📋 Copy</button>
                               </div>
                               <span className="text-gray-400 text-sm truncate block max-w-[450px]" title={`${l.originalUrl}${l.parameter || ''}`}>{l.originalUrl}{l.parameter}</span>
-                              
                               <div className="flex flex-wrap gap-1.5 bg-[#0B101B] p-2 rounded-xl border border-gray-800/60 w-fit">
                                 <button onClick={() => handleCopyChannelLink(l.alias, 'facebook')} className="bg-blue-600/10 hover:bg-blue-600/30 text-blue-400 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition">🔵 FB</button>
                                 <button onClick={() => handleCopyChannelLink(l.alias, 'tiktok')} className="bg-pink-600/10 hover:bg-pink-600/30 text-pink-400 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition">🎵 TikTok</button>
@@ -351,28 +337,12 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className="flex gap-1.5 flex-wrap">
-                              {l.tags && l.tags.length > 0 ? (
-                                l.tags.map(t => (
-                                  <button key={t} onClick={() => { setSelectedTag(t); setCurrentPage(1); }} className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition shadow-sm">
-                                    #{t}
-                                  </button>
-                                ))
-                              ) : (
-                                <span className="text-gray-600 text-sm italic">ไม่มี</span>
-                              )}
-                            </div>
+                            <div className="flex gap-1.5 flex-wrap">{l.tags && l.tags.length > 0 ? ( l.tags.map(t => ( <button key={t} onClick={() => { setSelectedTag(t); setCurrentPage(1); }} className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition">#{t}</button> )) ) : ( <span className="text-gray-600 text-sm italic">ไม่มี</span> )}</div>
                           </td>
-                          {user.role === 'admin' && (
-                            <td className="p-4 font-bold text-indigo-400 text-sm">
-                              👤 {l.User?.username || 'ระบบกลาง'}
-                            </td>
-                          )}
+                          {user.role === 'admin' && ( <td className="p-4 font-bold text-indigo-400 text-sm">👤 {l.User?.username || 'ระบบกลาง'}</td> )}
                           <td className="p-4 text-center">
                             <div className="flex justify-center gap-2">
-                              <button onClick={() => handleOpenStats(l)} className="text-[#61DAFB] bg-[#61DAFB]/10 hover:bg-[#61DAFB]/20 px-3 py-1.5 rounded-xl text-sm font-bold cursor-pointer transition flex items-center gap-1">
-                                📊 วิเคราะห์ ({l.clicks || 0})
-                              </button>
+                              <button onClick={() => handleOpenStats(l)} className="text-[#61DAFB] bg-[#61DAFB]/10 hover:bg-[#61DAFB]/20 px-3 py-1.5 rounded-xl text-sm font-bold cursor-pointer transition flex items-center gap-1">📊 วิเคราะห์ ({l.clicks || 0})</button>
                               <button onClick={() => handleDeleteLink(l.id)} className="text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-xl text-sm font-bold cursor-pointer transition">ลบข้อมูล</button>
                             </div>
                           </td>
@@ -383,7 +353,6 @@ export default function Dashboard() {
                 </table>
               </div>
             </div>
-
           </div>
         )}
 
@@ -391,107 +360,29 @@ export default function Dashboard() {
         {activeTab === 'domains' && (
           <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
             <h2 className="text-2xl font-bold mb-3 text-white flex items-center gap-2"><span>🌐</span> โดเมนของฉัน</h2>
-            <p className="text-base text-gray-400 mb-6">รายชื่อ Root Domain ที่คุณกำลังใช้งานอยู่ (สิทธิ์การเปลี่ยนชื่อโดเมนยกล็อตถูกจำกัดไว้ให้ Admin เพื่อความปลอดภัย)</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {domains.length === 0 ? (
-                <p className="text-gray-500 py-10 text-center text-base col-span-full">ยังไม่มีข้อมูลโดเมนที่ลงทะเบียนในระบบ</p>
-              ) : (
-                domains.map(d => (
-                  <div key={d.id} className="bg-[#0B101B] p-6 rounded-xl border border-gray-800 flex justify-between items-center shadow-lg">
-                    <div>
-                      <p className="font-bold text-white text-xl tracking-wide">{d.name}</p>
-                      <p className="text-sm text-gray-500 mt-1">บันทึกอัตโนมัติจากลิงก์ย่อของผู้ใช้งาน</p>
-                    </div>
-                  </div>
-                ))
-              )}
+              {domains.length === 0 ? ( <p className="text-gray-500 py-10 text-center text-base col-span-full">ยังไม่มีข้อมูลโดเมนที่ลงทะเบียน</p> ) : ( domains.map(d => ( <div key={d.id} className="bg-[#0B101B] p-6 rounded-xl border border-gray-800 text-white font-bold text-xl">{d.name}</div> )) )}
             </div>
           </div>
         )}
 
-        {/* 👑 TAB 3: แดชบอร์ดผู้ดูแลระบบ (Admin) */}
+        {/* 👑 TAB 3: ADMIN DASHBOARD */}
         {activeTab === 'admin' && user.role === 'admin' && (
           <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
             <div className="flex gap-4 mb-8 border-b border-gray-800 pb-3">
-              <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👥 สมาชิกทั้งหมด</button>
-              <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>🌐 โดเมนทั้งหมด</button>
-              <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
+              <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>👥 สมาชิกทั้งหมด</button>
+              <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>🌐 โดเมนทั้งหมด</button>
+              <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white' : 'text-gray-400'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
             </div>
-
-            {/* Admin Sub Tab: USERS */}
-            {adminSubTab === 'users' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-base">
-                  <thead><tr className="bg-gray-800/50 text-gray-300 border-b border-gray-700"><th className="p-4">Username</th><th className="p-4">Role Status</th><th className="p-4 text-center">จัดการระบบ</th></tr></thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {adminUsers.map(u => (
-                      <tr key={u.id} className="hover:bg-gray-800/20 transition-colors">
-                        <td className="p-4 text-white font-bold text-lg">{u.username}</td>
-                        <td className="p-4 text-[#61DAFB] font-mono font-semibold">{u.role.toUpperCase()}</td>
-                        <td className="p-4 text-center">
-                          {user.id !== u.id ? (
-                            <div className="flex justify-center gap-2">
-                              <button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#144EE3]/40 cursor-pointer transition">สลับสิทธิ์ผู้ใช้</button>
-                              <button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-500/40 cursor-pointer transition">ลบสมาชิก</button>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-500 font-bold italic">(ตัวคุณเอง)</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Admin Sub Tab: DOMAINS */}
-            {adminSubTab === 'domains' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-base">
-                  <thead><tr className="bg-gray-800/50 text-gray-300 border-b border-gray-700"><th className="p-4">ชื่อโดเมนหลัก (แก้ไขตรงนี้ หน้าจัดการลิงก์ของ User จะเปลี่ยนตามทันที)</th><th className="p-4 text-center">จัดการระบบ</th></tr></thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {adminDomains.map(d => (
-                      <tr key={d.id} className="hover:bg-gray-800/20 transition-colors">
-                        <td className="p-4 text-white font-bold text-lg">{d.name}</td>
-                        <td className="p-4 text-center">
-                          <div className="flex justify-center gap-2">
-                            <button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-yellow-500/40 cursor-pointer transition">แก้ไขยกล็อต</button>
-                            <button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-500/40 cursor-pointer transition">ลบโดเมน</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Admin Sub Tab: TAGS */}
-            {adminSubTab === 'tags' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-base">
-                  <thead><tr className="bg-gray-800/50 text-gray-300 border-b border-gray-700"><th className="p-3">ชื่อแท็กภาพรวมระบบ (วิ่งไปแก้ให้ทุกลิงก์ของทุกคน)</th><th className="p-3 text-center">จัดการระบบ</th></tr></thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {adminTags.map(t => (
-                      <tr key={t} className="hover:bg-gray-800/20 transition-colors">
-                        <td className="p-4 text-white font-bold text-lg">#{t}</td>
-                        <td className="p-4 text-center">
-                          <button onClick={() => handleAdminEditTag(t)} className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl font-bold text-sm mr-2 hover:bg-yellow-500/40 cursor-pointer transition">เปลี่ยนชื่อแท็ก</button>
-                          <button onClick={() => handleAdminDeleteTag(t)} className="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-500/40 cursor-pointer transition">ลบแท็ก</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {adminSubTab === 'users' && ( <table className="w-full text-left text-base"><tbody>{adminUsers.map(u => ( <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{u.username}</td><td className="p-4 text-center"><button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-3 py-1.5 rounded-xl text-sm mr-2">สลับสิทธิ์</button><button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
+            {adminSubTab === 'domains' && ( <table className="w-full text-left text-base"><tbody>{adminDomains.map(d => ( <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{d.name}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">แก้ไข</button><button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
+            {adminSubTab === 'tags' && ( <table className="w-full text-left text-base"><tbody>{adminTags.map(t => ( <tr key={t} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white">#{t}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditTag(t)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">เปลี่ยนชื่อ</button><button onClick={() => handleAdminDeleteTag(t)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
           </div>
         )}
       </div>
 
       {/* ==================================================================================== */}
-      {/* 📊 🔥 MODAL ร่องทอง: รวมศูนย์สถิติการตลาด (Module 1 แยกช่องทางค่ายดัง + Module 2 เทรนด์เวลาทองคำ) */}
+      {/* 📊 🔥 MODAL ร่องทอง: ศูนย์สถิติ 3 โมดูล */}
       {/* ==================================================================================== */}
       {showStatsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -502,153 +393,105 @@ export default function Dashboard() {
                 <h3 className="text-2xl font-black text-white flex items-center gap-2">📊 ศูนย์วิเคราะห์ข้อมูลมาร์เก็ตติ้งรวม</h3>
                 <p className="text-sm text-gray-400 mt-1">ลิงก์ย่อ: <span className="text-[#61DAFB] font-bold">yoalink.com/{activeStatLink?.alias}</span></p>
               </div>
-              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-white bg-[#0B101B] px-3 py-1.5 rounded-xl text-sm font-bold border border-gray-800 cursor-pointer transition">✕ ปิดหน้าต่าง</button>
+              <button onClick={() => setShowStatsModal(false)} className="text-gray-400 hover:text-white bg-[#0B101B] px-3 py-2 rounded-xl text-sm font-bold border border-gray-800 cursor-pointer transition">✕ ปิดหน้าต่าง</button>
             </div>
 
-            {/* 📑 แท็บย่อยสลับหน้าสถิติภาพรวมภายใน Modal */}
             <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-800 pb-2">
-              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทางการตลาด</button>
-              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ 24 ชม. & 7 วัน </button>
-              {/* 🔥 ปุ่มแท็บที่ 3: อุปกรณ์คนใช้งาน (เพิ่มขึ้นตรงนี้) */}
-              <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้งาน (Module 3)</button>
+              <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทาง</button>
+              <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ 24 ชม.</button>
+              <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้งาน</button>
             </div>
 
-            {/* ส่วนที่ 1: วิเคราะห์ตามช่องทางค่ายยิงแอด (Module 1) */}
             {statsSubTab === 'channels' && (
               <div className="space-y-4">
                 <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
                   <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกพิสูจน์ทราบแหล่งที่มารวม:</span>
-                  <span className="text-2xl font-black text-[#61DAFB] tracking-wide">{channelStats.totalChannelClicks} ครั้ง</span>
+                  <span className="text-2xl font-black text-[#61DAFB]">{channelStats.totalChannelClicks} ครั้ง</span>
                 </div>
-
-                <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
-                  {channelStats.stats && channelStats.stats.length === 0 ? (
-                    <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลทราฟฟิกการตลาดคลิกเข้ามา</p>
-                  ) : (
-                    channelStats.stats?.map((item, idx) => {
-                      let barColor = 'from-gray-600 to-gray-400';
-                      let channelTitle = item.channel.toUpperCase();
-
-                      if (item.channel === 'facebook') { barColor = 'from-blue-600 to-blue-400'; channelTitle = '🔵 FACEBOOK AD'; }
-                      else if (item.channel === 'tiktok') { barColor = 'from-pink-600 to-purple-500'; channelTitle = '🎵 TIKTOK AD'; }
-                      else if (item.channel === 'line') { barColor = 'from-green-600 to-green-400'; channelTitle = '🟢 LINE CAMPAIGN'; }
-                      else if (item.channel === 'sms') { barColor = 'from-orange-600 to-amber-500'; channelTitle = '📱 SMS BROADCAST'; }
-                      else if (item.channel === 'seo') { barColor = 'from-indigo-600 to-violet-400'; channelTitle = '🔍 SEO / ORGANIC'; }
-                      else { channelTitle = '🌐 DIRECT / OTHER TRAFFIC'; }
-
-                      return (
-                        <div key={idx} className="space-y-1.5">
-                          <div className="flex justify-between text-sm font-bold text-gray-300">
-                            <span>{channelTitle}</span>
-                            <span className="text-white">{item.clicks} คลิก (<span className="text-[#61DAFB]">{item.percentage}%</span>)</span>
-                          </div>
-                          <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
-                            <div 
-                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
-                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
-                            >
-                              {item.percentage > 5 && (
-                                <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>
-                              )}
-                            </div>
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                  {channelStats.stats?.map((item, idx) => {
+                    let barColor = 'from-gray-600 to-gray-400'; let channelTitle = item.channel.toUpperCase();
+                    if (item.channel === 'facebook') { barColor = 'from-blue-600 to-blue-400'; channelTitle = '🔵 FACEBOOK AD'; }
+                    else if (item.channel === 'tiktok') { barColor = 'from-pink-600 to-purple-500'; channelTitle = '🎵 TIKTOK AD'; }
+                    else if (item.channel === 'line') { barColor = 'from-green-600 to-green-400'; channelTitle = '🟢 LINE CAMPAIGN'; }
+                    else if (item.channel === 'sms') { barColor = 'from-orange-600 to-amber-500'; channelTitle = '📱 SMS BROADCAST'; }
+                    else if (item.channel === 'seo') { barColor = 'from-indigo-600 to-violet-400'; channelTitle = '🔍 SEO / ORGANIC'; }
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between text-sm font-bold text-gray-400"><span>{channelTitle}</span><span className="text-white">{item.clicks} คลิก ({item.percentage}%)</span></div>
+                        <div className="w-full bg-[#0B101B] rounded-full h-5 overflow-hidden border border-gray-800/40 relative">
+                          <div className={`bg-gradient-to-r ${barColor} h-full rounded-full flex items-center justify-end pr-3`} style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}>
+                            {item.percentage > 5 && <span className="text-white text-xs font-black">{item.percentage}%</span>}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* ส่วนที่ 2: ช่วงเวลาทองคำเรียงชั่วโมง + สถิติ 7 วัน (Module 2) */}
             {statsSubTab === 'timeTrends' && (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div>
-                  <h4 className="text-sm font-bold text-gray-400 mb-3">📅 สถิติมาร์เก็ตติ้งรายวัน (7 วันล่าสุด)</h4>
-                  <div className="grid grid-cols-7 gap-2 items-end bg-[#0B101B] p-4 rounded-2xl border border-gray-800 h-32 shadow-inner">
-                    {timeStatsData.daily && timeStatsData.daily.length === 0 ? (
-                      <p className="text-center py-8 text-gray-500 text-sm italic col-span-full">ไม่มีข้อมูล</p>
-                    ) : (
-                      timeStatsData.daily?.map((d, i) => {
-                        const maxClicks = Math.max(...timeStatsData.daily.map(o => o.clicks), 1);
-                        const heightPercent = Math.min(Math.max((d.clicks / maxClicks) * 100, 8), 100);
-                        return (
-                          <div key={i} className="flex flex-col items-center gap-1 group relative cursor-pointer">
-                            <span className="absolute -top-6 bg-gray-800 text-white text-[11px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition z-10">{d.clicks} คลิก</span>
-                            <div className="w-full bg-gradient-to-t from-[#EB568E]/60 to-[#EB568E] rounded-md transition-all duration-700 shadow-md" style={{ height: `${heightPercent}px` }}></div>
-                            <span className="text-[10px] text-gray-500 font-bold mt-1">{d.date}</span>
-                          </div>
-                        );
-                      })
-                    )}
+                  <h4 className="text-sm font-bold text-gray-400 mb-2">📅 เทรนด์ยอดคลิกรายวัน (7 วันล่าสุด)</h4>
+                  <div className="grid grid-cols-7 gap-2 items-end bg-[#0B101B] p-4 rounded-2xl border border-gray-800 h-28 shadow-inner">
+                    {timeStatsData.daily?.map((d, i) => {
+                      const maxClicks = Math.max(...timeStatsData.daily.map(o => o.clicks), 1);
+                      const heightPercent = Math.min(Math.max((d.clicks / maxClicks) * 100, 8), 100);
+                      return (
+                        <div key={i} className="flex flex-col items-center gap-1 group relative cursor-pointer">
+                          <span className="absolute -top-6 bg-gray-800 text-white text-[10px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition z-10">{d.clicks} คลิก</span>
+                          <div className="w-full bg-gradient-to-t from-[#EB568E]/60 to-[#EB568E] rounded transition-all duration-700 shadow-md" style={{ height: `${heightPercent}px` }}></div>
+                          <span className="text-[9px] text-gray-500 mt-1">{d.date}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
                 <div>
-                  <h4 className="text-sm font-bold text-gray-400 mb-2">⏰ แผนภูมิวิเคราะห์พฤติกรรมลูกค้าเรียงตามชั่วโมง (ชั่วโมงทองคำ)</h4>
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 bg-[#0B101B] p-4 rounded-2xl border border-gray-800 shadow-inner">
-                    {timeStatsData.hourly && timeStatsData.hourly.length === 0 ? (
-                      <p className="text-center py-4 text-gray-500 text-sm">ไม่มีข้อมูลประวัติเวลาคลิก</p>
-                    ) : (
-                      timeStatsData.hourly?.map((h, idx) => {
-                        const totalAllClicks = timeStatsData.hourly.reduce((s, o) => s + o.clicks, 0);
-                        const per = totalAllClicks > 0 ? Math.round((h.clicks / totalAllClicks) * 100) : 0;
-                        return (
-                          <div key={idx} className="flex items-center gap-3">
-                            <span className="text-xs text-gray-400 font-mono w-10">{h.hour}</span>
-                            <div className="flex-1 bg-gray-950 rounded-full h-3.5 overflow-hidden border border-gray-800 relative">
-                              <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-1000" style={{ width: `${per || (h.clicks > 0 ? 3 : 0)}%` }}></div>
-                            </div>
-                            <span className="text-xs font-bold text-orange-400 w-16 text-right">{h.clicks} คลิก ({per}%)</span>
+                  <h4 className="text-sm font-bold text-gray-400 mb-1.5">⏰ คัดกรองความพีกตามชั่วโมงทองคำ</h4>
+                  <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-2 bg-[#0B101B] p-3 rounded-2xl border border-gray-800">
+                    {timeStatsData.hourly?.map((h, idx) => {
+                      const totalAllClicks = timeStatsData.hourly.reduce((s, o) => s + o.clicks, 0); const per = totalAllClicks > 0 ? Math.round((h.clicks / totalAllClicks) * 100) : 0;
+                      return (
+                        <div key={idx} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 font-mono w-10">{h.hour}</span>
+                          <div className="flex-1 bg-gray-950 rounded-full h-3 border border-gray-800 relative">
+                            <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full" style={{ width: `${per || (h.clicks > 0 ? 3 : 0)}%` }}></div>
                           </div>
-                        );
-                      })
-                    )}
+                          <span className="text-xs text-orange-400 w-16 text-right font-bold">{h.clicks} คลิก</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 🔥 ส่วนที่ 3: สถิติแยกประเภทอุปกรณ์ผู้ใช้ (Module 3 แผงกราฟใหม่แกะกล่อง!) */}
             {statsSubTab === 'devices' && (
               <div className="space-y-4">
                 <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
-                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดสแกนคัดกรองรหัสอุปกรณ์รวม:</span>
-                  <span className="text-2xl font-black text-amber-400 tracking-wide">{deviceStatsData.totalDeviceClicks || 0} ครั้ง</span>
+                  <span className="text-gray-400 text-sm font-semibold">📈 ยอดสแกนรหัสอุปกรณ์รวม:</span>
+                  <span className="text-2xl font-black text-amber-400">{deviceStatsData.totalDeviceClicks || 0} ครั้ง</span>
                 </div>
-
-                <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
-                  {deviceStatsData.stats && deviceStatsData.stats.length === 0 ? (
-                    <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลสถิติอุปกรณ์คลิกเข้ามา</p>
-                  ) : (
-                    deviceStatsData.stats?.map((item, idx) => {
-                      let barColor = 'from-purple-600 to-indigo-400';
-                      let iconTitle = '⚙️ OTHER DEVICES';
-
-                      if (item.platform === 'iOS') { barColor = 'from-slate-300 to-slate-100'; iconTitle = '🍏 APPLE iOS (iPhone / iPad)'; }
-                      else if (item.platform === 'Android') { barColor = 'from-green-500 to-lime-400'; iconTitle = '🤖 GOOGLE ANDROID'; }
-                      else if (item.platform === 'Desktop') { barColor = 'from-blue-600 to-cyan-400'; iconTitle = '💻 DESKTOP (Windows / Mac / Linux)'; }
-
-                      return (
-                        <div key={idx} className="space-y-1.5">
-                          <div className="flex justify-between text-sm font-bold text-gray-300">
-                            <span>{iconTitle}</span>
-                            <span className="text-white">{item.clicks} คลิก (<span className="text-amber-400">{item.percentage}%</span>)</span>
-                          </div>
-                          <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
-                            <div 
-                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
-                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
-                            >
-                              {item.percentage > 5 && (
-                                <span className="text-gray-900 text-xs font-black drop-shadow-md">{item.percentage}%</span>
-                              )}
-                            </div>
+                <div className="space-y-5 max-h-[300px] overflow-y-auto pr-2">
+                  {deviceStatsData.stats?.map((item, idx) => {
+                    let barColor = 'from-purple-600 to-indigo-400'; let iconTitle = '⚙️ OTHER DEVICES';
+                    if (item.platform === 'iOS') { barColor = 'from-slate-300 to-slate-100'; iconTitle = '🍏 APPLE iOS (iPhone/iPad)'; }
+                    else if (item.platform === 'Android') { barColor = 'from-green-500 to-lime-400'; iconTitle = '🤖 GOOGLE ANDROID'; }
+                    else if (item.platform === 'Desktop') { barColor = 'from-blue-600 to-cyan-400'; iconTitle = '💻 DESKTOP (PC/Mac)'; }
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between text-sm font-bold text-gray-400"><span>{iconTitle}</span><span className="text-white">{item.clicks} คลิก ({item.percentage}%)</span></div>
+                        <div className="w-full bg-[#0B101B] rounded-full h-5 overflow-hidden border border-gray-800/40 relative">
+                          <div className={`bg-gradient-to-r ${barColor} h-full rounded-full flex items-center justify-end pr-3`} style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}>
+                            {item.percentage > 5 && <span className="text-gray-900 text-xs font-black">{item.percentage}%</span>}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -656,6 +499,14 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* สไตล์อนิเมชันสำหรับเอฟเฟกต์ไฟวิ่งของกราฟ */}
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
 
     </div>
   );
