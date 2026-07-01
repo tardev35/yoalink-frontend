@@ -83,10 +83,32 @@ export default function Dashboard() {
     Swal.fire({ icon: 'success', title: 'คัดลอกลิงก์แล้ว!', text: fullLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  const handleCopyChannelLink = (alias, channelCode) => {
-    const generatedLink = `https://yoalink.com/${alias}?src=${channelCode}`;
+  // 🔥 หน้าบ้าน: กดก๊อปปี้แยกค่ายการตลาด แปลงร่างเป็น ?s=1,2,3,4,5 อัตโนมัติ
+  const handleCopyChannelLink = (alias, channelType) => {
+    // ระบบพจนานุกรม Mapping Key => Value 
+    const channelMap = {
+      'facebook': '1',
+      'tiktok': '2',
+      'line': '3',
+      'sms': '4',
+      'seo': '5'
+    };
+    
+    const sCode = channelMap[channelType];
+    const generatedLink = `https://yoalink.com/${alias}?s=${sCode}`;
     navigator.clipboard.writeText(generatedLink);
-    Swal.fire({ icon: 'success', title: `ก๊อปปี้ลิงก์ช่องทาง ${channelCode.toUpperCase()} แล้ว!`, text: generatedLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
+    
+    Swal.fire({ 
+      icon: 'success', 
+      title: `ก๊อปปี้ลิงก์ช่องทาง ${channelType.toUpperCase()} แล้ว!`, 
+      text: generatedLink, 
+      toast: true, 
+      position: 'top-end', 
+      showConfirmButton: false, 
+      timer: 2000, 
+      background: '#181E29', 
+      color: '#C9CED6' 
+    });
   };
 
   // 🔥 อัปเกรด: เปิด Modal วิเคราะห์ ดึงข้อมูลควบ 4 เส้นทาง (ช่องทาง, เวลาพีก, อุปกรณ์, โดเมนต้นทาง)
