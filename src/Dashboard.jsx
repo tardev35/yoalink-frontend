@@ -109,6 +109,34 @@ export default function Dashboard() {
     } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' }); }
   };
 
+  // ✏️ ฟังก์ชันใหม่: กล่องเด้งสำหรับแก้ไขแท็กรายลิงก์
+  const handleEditTags = (linkId, currentTags) => {
+    const tagsString = Array.isArray(currentTags) ? currentTags.join(', ') : '';
+    
+    Swal.fire({
+      title: 'แก้ไขแท็กของลิงก์ย่อนี้',
+      input: 'text',
+      inputValue: tagsString,
+      inputPlaceholder: 'พิมพ์แท็กใหม่คั่นด้วยคอมมา (เช่น: pg, market, cam1)',
+      background: '#181E29',
+      color: '#C9CED6',
+      showCancelButton: true,
+      confirmButtonText: 'บันทึก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#144EE3'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await axiosInstance.put(`/api/links/${linkId}/tags`, { tags: result.value }, axiosConfig);
+          Swal.fire({ icon: 'success', title: 'อัปเดตแท็กสำเร็จ!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, background: '#181E29', color: '#C9CED6' });
+          fetchLinks(); // รีเฟรชตาราง
+        } catch (error) {
+          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถอัปเดตแท็กได้', background: '#181E29', color: '#C9CED6' });
+        }
+      }
+    });
+  };
+
   const handleDeleteLink = (id) => {
     Swal.fire({ title: 'ลบลิงก์นี้?', background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
       .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/links/${id}`, axiosConfig); fetchLinks(); fetchTopLinks(); } });
@@ -336,7 +364,19 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className="flex gap-1.5 flex-wrap">{l.tags && l.tags.length > 0 ? ( l.tags.map(t => ( <button key={t} onClick={() => { setSelectedTag(t); setCurrentPage(1); }} className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition">#{t}</button> )) ) : ( <span className="text-gray-600 text-sm italic">ไม่มี</span> )}</div>
+                            {/* 🔥 ปุ่มกดเพื่อแก้ไขแท็ก (Edit Tags) */}
+                            <div className="flex gap-1.5 flex-wrap items-center">
+                              {l.tags && l.tags.length > 0 ? ( 
+                                l.tags.map(t => ( 
+                                  <button key={t} onClick={() => { setSelectedTag(t); setCurrentPage(1); }} className="bg-[#0B101B] hover:bg-[#144EE3]/30 hover:text-[#61DAFB] text-xs font-semibold border border-gray-800 px-2.5 py-1 rounded-md text-gray-400 cursor-pointer transition">#{t}</button> 
+                                )) 
+                              ) : ( 
+                                <span className="text-gray-600 text-sm italic mr-1">ไม่มี</span> 
+                              )}
+                              <button onClick={() => handleEditTags(l.id, l.tags)} className="text-gray-500 hover:text-white ml-1 cursor-pointer transition p-1" title="แก้ไขแท็ก">
+                                ✏️
+                              </button>
+                            </div>
                           </td>
                           {user.role === 'admin' && ( <td className="p-4 font-bold text-indigo-400 text-sm">👤 {l.User?.username || 'ระบบกลาง'}</td> )}
                           <td className="p-4 text-center">
@@ -399,7 +439,7 @@ export default function Dashboard() {
               <button onClick={() => setStatsSubTab('channels')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'channels' ? 'text-[#61DAFB] border-b-2 border-[#61DAFB]' : 'text-gray-400 hover:text-white'}`}>🎯 แยกช่องทาง</button>
               <button onClick={() => setStatsSubTab('timeTrends')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'timeTrends' ? 'text-[#EB568E] border-b-2 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>⏰ เวลาทองคำ</button>
               <button onClick={() => setStatsSubTab('devices')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'devices' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-gray-400 hover:text-white'}`}>📱 อุปกรณ์คนใช้</button>
-              <button onClick={() => setStatsSubTab('referrers')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'referrers' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนต้นทาง (Referrer)</button>
+              <button onClick={() => setStatsSubTab('referrers')} className={`pb-2 px-4 font-bold text-sm cursor-pointer transition ${statsSubTab === 'referrers' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนต้นทาง</button>
             </div>
 
             {statsSubTab === 'channels' && (
