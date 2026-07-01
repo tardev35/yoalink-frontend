@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [selectedTag, setSelectedTag] = useState(''); 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalLinks, setTotalLinks] = useState(0); // 🔥 ระบบนับลิงก์รวม
   const [domains, setDomains] = useState([]);
   
   const [adminUsers, setAdminUsers] = useState([]);
@@ -25,14 +26,14 @@ export default function Dashboard() {
   const [tagsInput, setTagsInput] = useState('');
   const [topLinks, setTopLinks] = useState([]);
 
-  // 🔥 States ศูนย์รวมสถิติครบ 4 หมวดย่อยใน Modal (เพิ่ม Referrer)
+  // 🔥 States ศูนย์รวมสถิติครบ 5 โมดูล
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
-  const [statsSubTab, setStatsSubTab] = useState('channels'); // channels, timeTrends, devices, referrers
+  const [statsSubTab, setStatsSubTab] = useState('channels'); 
   const [channelStats, setChannelStats] = useState({ totalChannelClicks: 0, stats: [] });
   const [timeStatsData, setTimeStatsData] = useState({ hourly: [], daily: [] }); 
   const [deviceStatsData, setDeviceStatsData] = useState({ totalDeviceClicks: 0, stats: [] }); 
-  const [referrerStatsData, setReferrerStatsData] = useState({ totalReferrerClicks: 0, stats: [] }); // 🔥 โมดูล 5
+  const [referrerStatsData, setReferrerStatsData] = useState({ totalReferrerClicks: 0, stats: [] });
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -55,7 +56,9 @@ export default function Dashboard() {
   const fetchLinks = async () => {
     try {
       const res = await axiosInstance.get(`/api/links?page=${currentPage}&limit=20&search=${search}&tag=${selectedTag}`, axiosConfig);
-      setLinks(res.data.links || []); setTotalPages(res.data.totalPages || 1);
+      setLinks(res.data.links || []); 
+      setTotalPages(res.data.totalPages || 1);
+      setTotalLinks(res.data.totalLinks || 0); // 🔥 อัปเดตยอดรวมลิงก์
     } catch (err) {}
   };
 
@@ -83,78 +86,45 @@ export default function Dashboard() {
     Swal.fire({ icon: 'success', title: 'คัดลอกลิงก์แล้ว!', text: fullLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  // 🔥 หน้าบ้าน: กดก๊อปปี้แยกค่ายการตลาด แปลงร่างเป็น ?s=1,2,3,4,5 อัตโนมัติ
+  // 🔥 แปลงร่างลิงก์เป็น ?s=X
   const handleCopyChannelLink = (alias, channelType) => {
-    // ระบบพจนานุกรม Mapping Key => Value 
-    const channelMap = {
-      'facebook': '1',
-      'tiktok': '2',
-      'line': '3',
-      'sms': '4',
-      'seo': '5'
-    };
-    
+    const channelMap = { 'facebook': '1', 'tiktok': '2', 'line': '3', 'sms': '4', 'seo': '5' };
     const sCode = channelMap[channelType];
     const generatedLink = `https://yoalink.com/${alias}?s=${sCode}`;
     navigator.clipboard.writeText(generatedLink);
-    
-    Swal.fire({ 
-      icon: 'success', 
-      title: `ก๊อปปี้ลิงก์ช่องทาง ${channelType.toUpperCase()} แล้ว!`, 
-      text: generatedLink, 
-      toast: true, 
-      position: 'top-end', 
-      showConfirmButton: false, 
-      timer: 2000, 
-      background: '#181E29', 
-      color: '#C9CED6' 
-    });
+    Swal.fire({ icon: 'success', title: `ก๊อปปี้ลิงก์ช่องทาง ${channelType.toUpperCase()} แล้ว!`, text: generatedLink, toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, background: '#181E29', color: '#C9CED6' });
   };
 
-  // 🔥 อัปเกรด: เปิด Modal วิเคราะห์ ดึงข้อมูลควบ 4 เส้นทาง (ช่องทาง, เวลาพีก, อุปกรณ์, โดเมนต้นทาง)
   const handleOpenStats = async (linkItem) => {
     try {
       setActiveStatLink(linkItem);
       setStatsSubTab('channels'); 
-      
       const resChannel = await axiosInstance.get(`/api/links/${linkItem.id}/channel-stats`, axiosConfig);
       const resTime = await axiosInstance.get(`/api/links/${linkItem.id}/time-stats`, axiosConfig);
       const resDevice = await axiosInstance.get(`/api/links/${linkItem.id}/device-stats`, axiosConfig); 
-      const resReferrer = await axiosInstance.get(`/api/links/${linkItem.id}/referrer-stats`, axiosConfig); // 🔥 โมดูล 5
+      const resReferrer = await axiosInstance.get(`/api/links/${linkItem.id}/referrer-stats`, axiosConfig); 
       
       setChannelStats(resChannel.data || { totalChannelClicks: 0, stats: [] });
       setTimeStatsData(resTime.data || { hourly: [], daily: [] });
       setDeviceStatsData(resDevice.data || { totalDeviceClicks: 0, stats: [] }); 
-      setReferrerStatsData(resReferrer.data || { totalReferrerClicks: 0, stats: [] }); // 🔥 บันทึกลง State
-      
+      setReferrerStatsData(resReferrer.data || { totalReferrerClicks: 0, stats: [] }); 
       setShowStatsModal(true);
     } catch (err) { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถิติมาร์เก็ตติ้งรวมได้', background: '#181E29', color: '#C9CED6' }); }
   };
 
-  // ✏️ ฟังก์ชันใหม่: กล่องเด้งสำหรับแก้ไขแท็กรายลิงก์
   const handleEditTags = (linkId, currentTags) => {
     const tagsString = Array.isArray(currentTags) ? currentTags.join(', ') : '';
-    
     Swal.fire({
       title: 'แก้ไขแท็กของลิงก์ย่อนี้',
       input: 'text',
       inputValue: tagsString,
-      inputPlaceholder: 'พิมพ์แท็กใหม่คั่นด้วยคอมมา (เช่น: pg, market, cam1)',
-      background: '#181E29',
-      color: '#C9CED6',
-      showCancelButton: true,
-      confirmButtonText: 'บันทึก',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#144EE3'
+      inputPlaceholder: 'พิมพ์แท็กใหม่คั่นด้วยคอมมา',
+      background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#144EE3'
     }).then(async (result) => {
       if (result.isConfirmed) {
-        try {
-          await axiosInstance.put(`/api/links/${linkId}/tags`, { tags: result.value }, axiosConfig);
-          Swal.fire({ icon: 'success', title: 'อัปเดตแท็กสำเร็จ!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, background: '#181E29', color: '#C9CED6' });
-          fetchLinks(); // รีเฟรชตาราง
-        } catch (error) {
-          Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: 'ไม่สามารถอัปเดตแท็กได้', background: '#181E29', color: '#C9CED6' });
-        }
+        await axiosInstance.put(`/api/links/${linkId}/tags`, { tags: result.value }, axiosConfig);
+        Swal.fire({ icon: 'success', title: 'อัปเดตแท็กสำเร็จ!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, background: '#181E29', color: '#C9CED6' });
+        fetchLinks(); 
       }
     });
   };
@@ -176,7 +146,7 @@ export default function Dashboard() {
   };
 
   const handleAdminDeleteUser = (id, username) => {
-    Swal.fire({ title: `ลบสมาชิก: ${username}?`, text: "สิทธิ์การเข้าใช้งานระบบจะถูกทำลายทันที!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
+    Swal.fire({ title: `ลบสมาชิก: ${username}?`, text: "สิทธิ์จะถูกทำลายทันที!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
       .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/admin/users/${id}`, axiosConfig); fetchAdminUsers(); } });
   };
 
@@ -186,7 +156,7 @@ export default function Dashboard() {
   };
 
   const handleAdminDeleteDomain = (id, domainName) => {
-    Swal.fire({ title: `ลบโดเมนหลัก: ${domainName}?`, text: "โปรดตรวจสอบว่าไม่มีลิงก์ใช้งานโดเมนนี้อยู่!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
+    Swal.fire({ title: `ลบโดเมนหลัก: ${domainName}?`, text: "โปรดตรวจสอบว่าไม่มีลิงก์ใช้งานอยู่!", background: '#181E29', color: '#C9CED6', showCancelButton: true, confirmButtonColor: '#EB568E' })
       .then(async (res) => { if (res.isConfirmed) { await axiosInstance.delete(`/api/admin/domains/${id}`, axiosConfig); fetchAdminDomains(); } });
   };
 
@@ -215,8 +185,6 @@ export default function Dashboard() {
       </nav>
 
       <div className="max-w-[1640px] mx-auto px-6 mt-10">
-        
-        {/* 🔥 MAIN NAVIGATION TABS */}
         <div className="flex flex-wrap gap-6 mb-8 border-b border-gray-800 pb-3">
           <button onClick={() => setActiveTab('links')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'links' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🔗 จัดการลิงก์</button>
           <button onClick={() => setActiveTab('domains')} className={`pb-3 px-6 text-lg font-bold cursor-pointer transition ${activeTab === 'domains' ? 'text-[#EB568E] border-b-4 border-[#EB568E]' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนของฉัน</button>
@@ -226,90 +194,39 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* 🏆 TAB: TOP RANK LEADERBOARD */}
         {activeTab === 'report' && (
           <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg animate-fade-in min-h-[500px]">
             <div className="text-center mb-10">
-              <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-500 to-orange-500 inline-block mb-3 drop-shadow-lg">
-                🏆 Top Score Leaderboard
-              </h2>
-              <p className="text-lg text-gray-400">
-                {user.role === 'admin' 
-                  ? 'จัดอันดับทราฟฟิกชอร์ตลิงก์ที่ร้อนแรงที่สุดในระบบ (แข่งขันระดับองค์กร)' 
-                  : 'จัดอันดับสุดยอดชอร์ตลิงก์ของคุณที่ทำผลงานได้ดีที่สุด'}
-              </p>
+              <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-500 to-orange-500 inline-block mb-3 drop-shadow-lg">🏆 Top Score Leaderboard</h2>
+              <p className="text-lg text-gray-400">{user.role === 'admin' ? 'จัดอันดับทราฟฟิกชอร์ตลิงก์ที่ร้อนแรงที่สุดในระบบ (แข่งขันระดับองค์กร)' : 'จัดอันดับสุดยอดชอร์ตลิงก์ของคุณที่ทำผลงานได้ดีที่สุด'}</p>
             </div>
-
             <div className="max-w-4xl mx-auto space-y-4">
               {topLinks.length === 0 ? (
-                <div className="text-center py-20 text-gray-500">
-                  <span className="text-5xl block mb-4">📭</span>
-                  <p className="text-xl font-bold">ยังไม่มีข้อมูลการคลิกในระบบ</p>
-                  <p>เริ่มนำลิงก์ไปแชร์เพื่อไต่อันดับได้เลย!</p>
-                </div>
+                <div className="text-center py-20 text-gray-500"><span className="text-5xl block mb-4">📭</span><p className="text-xl font-bold">ยังไม่มีข้อมูลการคลิกในระบบ</p></div>
               ) : (
                 topLinks.map((link, index) => {
-                  const rank = index + 1;
-                  const maxClicks = topLinks[0]?.clicks || 1;
-                  const widthPer = Math.max((link.clicks / maxClicks) * 100, 2); 
-                  
-                  let barColor = 'from-blue-600 to-cyan-400';
-                  let rankBadge = 'bg-gray-800 text-gray-400';
-                  let crown = '';
-
-                  if (rank === 1) { 
-                    barColor = 'from-yellow-400 to-orange-500'; 
-                    rankBadge = 'bg-yellow-500/20 text-yellow-400 text-2xl shadow-[0_0_20px_rgba(250,204,21,0.5)] border border-yellow-500/50'; 
-                    crown = '👑';
-                  } else if (rank === 2) { 
-                    barColor = 'from-gray-300 to-gray-500'; 
-                    rankBadge = 'bg-gray-400/20 text-gray-300 text-xl shadow-[0_0_15px_rgba(156,163,175,0.4)] border border-gray-400/50'; 
-                  } else if (rank === 3) { 
-                    barColor = 'from-orange-400 to-red-500'; 
-                    rankBadge = 'bg-orange-500/20 text-orange-400 text-xl shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-orange-500/50'; 
-                  }
-
+                  const rank = index + 1; const maxClicks = topLinks[0]?.clicks || 1; const widthPer = Math.max((link.clicks / maxClicks) * 100, 2);
+                  let barColor = 'from-blue-600 to-cyan-400'; let rankBadge = 'bg-gray-800 text-gray-400'; let crown = '';
+                  if (rank === 1) { barColor = 'from-yellow-400 to-orange-500'; rankBadge = 'bg-yellow-500/20 text-yellow-400 text-2xl shadow-[0_0_20px_rgba(250,204,21,0.5)] border border-yellow-500/50'; crown = '👑'; }
+                  else if (rank === 2) { barColor = 'from-gray-300 to-gray-500'; rankBadge = 'bg-gray-400/20 text-gray-300 text-xl border border-gray-400/50'; }
+                  else if (rank === 3) { barColor = 'from-orange-400 to-red-500'; rankBadge = 'bg-orange-500/20 text-orange-400 text-xl border border-orange-500/50'; }
                   return (
                     <div key={link.id} className="relative bg-[#0B101B] p-5 rounded-2xl border border-gray-800 flex items-center gap-6 hover:border-gray-600 transition-colors group">
-                      <div className={`flex items-center justify-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>
-                        {crown} #{rank}
-                      </div>
-
+                      <div className={`flex items-center justify-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>{crown} #{rank}</div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-3 gap-2">
+                        <div className="flex justify-between items-end mb-3 gap-2">
                           <div className="truncate pr-4">
-                            <h4 className="text-xl font-bold text-white mb-1 truncate">
-                              <a href={`https://yoalink.com/${link.alias}`} target="_blank" rel="noreferrer" className="hover:text-[#61DAFB] transition-colors">
-                                yoalink.com/{link.alias}
-                              </a>
-                            </h4>
+                            <h4 className="text-xl font-bold text-white mb-1 truncate"><a href={`https://yoalink.com/${link.alias}`} target="_blank" rel="noreferrer" className="hover:text-[#61DAFB] transition-colors">yoalink.com/{link.alias}</a></h4>
                             <p className="text-sm text-gray-500 truncate">{link.originalUrl}</p>
-                            
-                            {user.role === 'admin' && (
-                              <p className="text-xs text-indigo-400 font-bold mt-1.5 flex items-center gap-1">
-                                👤 สร้างโดย: <span className="text-white bg-indigo-500/20 px-2 py-0.5 rounded-md">{link.User?.username || 'ระบบ'}</span>
-                              </p>
-                            )}
+                            {user.role === 'admin' && <p className="text-xs text-indigo-400 font-bold mt-1.5">👤 สร้างโดย: <span className="text-white bg-indigo-500/20 px-2 py-0.5 rounded-md">{link.User?.username || 'ระบบ'}</span></p>}
                           </div>
-                          
-                          <div className="text-left sm:text-right shrink-0">
-                            <span className="text-3xl font-black text-white tracking-wide">{link.clicks.toLocaleString()} <span className="text-sm text-gray-400 font-normal">คลิก</span></span>
-                          </div>
+                          <div className="text-right shrink-0"><span className="text-3xl font-black text-white">{link.clicks.toLocaleString()} <span className="text-sm text-gray-400 font-normal">คลิก</span></span></div>
                         </div>
-
                         <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden border border-gray-800 shadow-inner">
-                          <div 
-                            className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 relative`} 
-                            style={{ width: `${widthPer}%` }}
-                          >
-                            <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
-                          </div>
+                          <div className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 relative`} style={{ width: `${widthPer}%` }}><div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div></div>
                         </div>
                       </div>
-
-                      <button onClick={() => handleOpenStats(link)} className="hidden sm:flex absolute right-5 top-5 bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-xl text-sm font-bold transition opacity-0 group-hover:opacity-100 cursor-pointer">
-                        📊 เจาะลึก
-                      </button>
+                      <button onClick={() => handleOpenStats(link)} className="hidden sm:flex absolute right-5 top-5 bg-gray-800 hover:bg-gray-700 text-gray-300 p-2 rounded-xl text-sm font-bold opacity-0 group-hover:opacity-100 transition">📊 เจาะลึก</button>
                     </div>
                   );
                 })
@@ -342,7 +259,15 @@ export default function Dashboard() {
 
             <div className="lg:col-span-3 bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h2 className="text-2xl font-bold text-white">📋 รายการลิงก์ย่อในระบบ</h2>
+                
+                {/* 🔥 ยอดนับจำนวนลิงก์รวมทั้งหมดแบบ Realtime */}
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  📋 รายการลิงก์ย่อในระบบ
+                  <span className="text-xs font-normal text-gray-400 bg-[#0B101B] px-2.5 py-1 rounded-md border border-gray-800/60">
+                    ทั้งหมด {totalLinks.toLocaleString()} ลิงก์
+                  </span>
+                </h2>
+
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                   {selectedTag && ( <button onClick={() => setSelectedTag('')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 text-sm px-3 py-2 rounded-xl flex items-center gap-1 font-bold cursor-pointer transition">❌ ล้างแท็ก: #{selectedTag}</button> )}
                   <select value={selectedTag} onChange={(e) => { setSelectedTag(e.target.value); setCurrentPage(1); }} className="px-4 py-2.5 bg-[#0B101B] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none cursor-pointer focus:border-gray-600">
@@ -386,7 +311,6 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="p-4">
-                            {/* 🔥 ปุ่มกดเพื่อแก้ไขแท็ก (Edit Tags) */}
                             <div className="flex gap-1.5 flex-wrap items-center">
                               {l.tags && l.tags.length > 0 ? ( 
                                 l.tags.map(t => ( 
@@ -395,9 +319,7 @@ export default function Dashboard() {
                               ) : ( 
                                 <span className="text-gray-600 text-sm italic mr-1">ไม่มี</span> 
                               )}
-                              <button onClick={() => handleEditTags(l.id, l.tags)} className="text-gray-500 hover:text-white ml-1 cursor-pointer transition p-1" title="แก้ไขแท็ก">
-                                ✏️
-                              </button>
+                              <button onClick={() => handleEditTags(l.id, l.tags)} className="text-gray-500 hover:text-white ml-1 cursor-pointer transition p-1" title="แก้ไขแท็ก">✏️</button>
                             </div>
                           </td>
                           {user.role === 'admin' && ( <td className="p-4 font-bold text-indigo-400 text-sm">👤 {l.User?.username || 'ระบบกลาง'}</td> )}
@@ -413,6 +335,43 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
+
+              {/* 🔥 แผงควบคุมสลับหน้า (Pagination UI) */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4 bg-[#0B101B] p-4 rounded-xl border border-gray-800/60">
+                  <span className="text-sm text-gray-400">
+                    กำลังแสดงหน้า <strong className="text-white">{currentPage}</strong> จากทั้งหมด <strong className="text-white">{totalPages}</strong> หน้า
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button 
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      className="px-3 py-1.5 bg-[#181E29] border border-gray-800 rounded-lg text-xs font-bold text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      ◀ ก่อนหน้า
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition cursor-pointer ${currentPage === pageNum ? 'bg-[#144EE3] text-white shadow-md' : 'bg-[#181E29] text-gray-400 border border-gray-800 hover:bg-gray-700'}`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button 
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      className="px-3 py-1.5 bg-[#181E29] border border-gray-800 rounded-lg text-xs font-bold text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      ถัดไป ▶
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
@@ -443,7 +402,7 @@ export default function Dashboard() {
       </div>
 
       {/* ==================================================================================== */}
-      {/* 📊 🔥 MODAL ร่องทอง: รวม 4 โมดูล (เพิ่มแท็บ 4: โดเมนอ้างอิง Top Referrer) */}
+      {/* 📊 🔥 MODAL ร่องทอง: รวม 5 โมดูล */}
       {/* ==================================================================================== */}
       {showStatsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -558,14 +517,12 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* 🔥 หน้าที่ 4: สถิติโดเมนต้นทางอ้างอิง (Top Referrer) แบบกราฟแท่งหรูหรา */}
             {statsSubTab === 'referrers' && (
               <div className="space-y-4">
                 <div className="bg-[#0B101B] border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-inner">
                   <span className="text-gray-400 text-sm font-semibold">📈 ยอดคลิกแกะรอยเว็บไซต์ต้นทางรวม:</span>
                   <span className="text-2xl font-black text-indigo-400 tracking-wide">{referrerStatsData.totalReferrerClicks || 0} ครั้ง</span>
                 </div>
-
                 <div className="space-y-5 max-h-[350px] overflow-y-auto pr-2">
                   {referrerStatsData.stats && referrerStatsData.stats.length === 0 ? (
                     <p className="text-center py-8 text-gray-500 text-base italic">📭 ยังไม่มีข้อมูลโดเมนอ้างอิง</p>
@@ -574,21 +531,12 @@ export default function Dashboard() {
                       const isDirect = item.domain === 'Direct, Email, SMS';
                       const barColor = isDirect ? 'from-gray-600 to-gray-500' : 'from-indigo-600 to-cyan-400';
                       const domainTitle = isDirect ? '✉️ Direct Traffic (ไม่ผ่านเว็บอื่น)' : `🔗 ${item.domain}`;
-
                       return (
                         <div key={idx} className="space-y-1.5">
-                          <div className="flex justify-between text-sm font-bold text-gray-300">
-                            <span className={isDirect ? 'text-gray-500' : 'text-white'}>{domainTitle}</span>
-                            <span className="text-white">{item.clicks} คลิก (<span className="text-indigo-400">{item.percentage}%</span>)</span>
-                          </div>
+                          <div className="flex justify-between text-sm font-bold text-gray-300"><span className={isDirect ? 'text-gray-500' : 'text-white'}>{domainTitle}</span><span className="text-white">{item.clicks} คลิก (<span className="text-indigo-400">{item.percentage}%</span>)</span></div>
                           <div className="w-full bg-[#0B101B] rounded-full h-6 overflow-hidden relative border border-gray-800/40 shadow-inner">
-                            <div 
-                              className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`}
-                              style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}
-                            >
-                              {item.percentage > 5 && (
-                                <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>
-                              )}
+                            <div className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-3`} style={{ width: `${item.percentage || (item.clicks > 0 ? 2 : 0)}%` }}>
+                              {item.percentage > 5 && <span className="text-white text-xs font-black drop-shadow-md">{item.percentage}%</span>}
                             </div>
                           </div>
                         </div>
