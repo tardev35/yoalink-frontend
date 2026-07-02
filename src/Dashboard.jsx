@@ -494,14 +494,15 @@ export default function Dashboard() {
             {adminSubTab === 'logs' && (
               <div className="overflow-x-auto bg-[#0B101B] border border-gray-800/60 rounded-2xl p-2 shadow-inner">
                 <table className="w-full text-left text-base border-collapse">
-                  <thead>
-                    <tr className="bg-gray-800/40 text-sm font-bold text-gray-400 border-b border-gray-800">
-                      <th className="p-4 w-[18%]">⏰ วันเวลา (Timestamp)</th>
-                      <th className="p-4 w-[15%]">👤 ผู้ดำเนินงาน</th>
-                      <th className="p-4 w-[20%]">⚙️ การกระทำ</th>
-                      <th className="p-4 w-[47%]">📝 รายละเอียดกิจกรรม (Activity Details)</th>
-                    </tr>
-                  </thead>
+                 <thead>
+  <tr className="bg-gray-800/40 text-sm font-bold text-gray-400 border-b border-gray-800">
+    <th className="p-4 w-[15%]">⏰ วันเวลา</th>
+    <th className="p-4 w-[15%]">👤 ผู้ดำเนินงาน</th>
+    <th className="p-4 w-[20%]">📍 IP & สถานที่</th> {/* 🔥 เพิ่มคอลัมน์นี้ */}
+    <th className="p-4 w-[15%]">⚙️ การกระทำ</th>
+    <th className="p-4 w-[35%]">📝 รายละเอียดกิจกรรม</th>
+  </tr>
+</thead>
                   <tbody className="divide-y divide-gray-800/60 text-sm text-gray-300">
                     {adminLogs.length === 0 ? (
                       <tr>
@@ -559,6 +560,14 @@ export default function Dashboard() {
                           <tr key={log.id} className="border-b border-gray-800/40 hover:bg-gray-800/30 transition-all duration-300">
                             <td className="p-4 font-mono text-gray-500 text-xs">{displayTime}</td>
                             <td className="p-4 font-bold text-white">👤 {log.User?.username || 'ระบบส่วนกลาง'}</td>
+                            <td className="p-4">
+  <div className="flex flex-col">
+    <span className="font-mono text-xs text-[#61DAFB] bg-[#61DAFB]/10 px-2 py-0.5 rounded-md w-fit mb-1 border border-[#61DAFB]/20">
+      IPv4: {log.ipAddress || 'Unknown'}
+    </span>
+    <span className="text-xs text-gray-400">🌍 {log.location || 'ไม่ระบุตำแหน่ง'}</span>
+  </div>
+</td>
                             <td className="p-4"><span className={`px-2.5 py-1 rounded-md text-xs font-black tracking-wide ${actionBadge}`}>{actionText}</span></td>
                             <td className="p-4 font-medium text-gray-400 max-w-xl truncate" title={textDesc}>{textDesc}</td>
                           </tr>
