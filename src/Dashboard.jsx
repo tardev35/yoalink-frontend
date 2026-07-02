@@ -27,6 +27,10 @@ export default function Dashboard() {
   const [tagsInput, setTagsInput] = useState('');
   const [topLinks, setTopLinks] = useState([]);
 
+  // 🔥 States สำหรับเครื่องมือโอนกรรมสิทธิ์แบบกลุ่มผ่าน Alias
+  const [aliasTransferInput, setAliasTransferInput] = useState('');
+  const [selectedTargetUser, setSelectedTargetUser] = useState('');
+
   // 🔥 States ศูนย์รวมสถิติครบ 5 โมดูล
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [activeStatLink, setActiveStatLink] = useState(null);
@@ -179,7 +183,7 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันใหม่: เรียกหน้าต่างสำหรับเปลี่ยนเจ้าของลิงก์
+  // 🔥 ฟังก์ชันสำหรับเรียกหน้าต่างสำหรับเปลี่ยนเจ้าของลิงก์ (รายบุคคล)
   const handleChangeOwner = async (linkId, alias) => {
     let usersList = adminUsers;
     if (usersList.length === 0) {
@@ -220,6 +224,40 @@ export default function Dashboard() {
         }
       }
     });
+  };
+
+  // 🔥 ฟังก์ชันจัดการส่งข้อมูลโอนย้ายสิทธิ์แบบกลุ่มผ่านการระบุ Alias
+  const handleBatchTransferByAlias = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedTargetUser) {
+      Swal.fire({ icon: 'warning', title: 'กรุณาเลือกพนักงาน', text: 'โปรดเลือกพนักงานปลายทางที่จะรับโอนสิทธิ์', background: '#181E29', color: '#C9CED6' });
+      return;
+    }
+
+    const aliasArray = aliasTransferInput
+      .split(/[\n,]/)
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+
+    if (aliasArray.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'กรุณาใส่ Alias', text: 'โปรดพิมพ์หรือวางรายชื่อ Alias อย่างน้อย 1 ตัว', background: '#181E29', color: '#C9CED6' });
+      return;
+    }
+
+    try {
+      const res = await axiosInstance.post('/api/admin/links/transfer-by-alias', {
+        aliases: aliasArray,
+        newUserId: selectedTargetUser
+      }, axiosConfig);
+
+      Swal.fire({ icon: 'success', title: 'โอนกรรมสิทธิ์สำเร็จ!', text: res.data.message, background: '#181E29', color: '#C9CED6' });
+      setAliasTransferInput('');
+      setSelectedTargetUser('');
+      fetchLinks(); 
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.response?.data?.message || 'ไม่สามารถโอนสิทธิ์ได้', background: '#181E29', color: '#C9CED6' });
+    }
   };
 
   // ================= ADMIN FUNCTIONS =================
@@ -286,7 +324,6 @@ export default function Dashboard() {
       });
   };
 
-  // 🔥 ฟังก์ชันใหม่: โอนย้ายลิงก์ข้ามโดเมน (Migrate Domain)
   const handleAdminMigrateDomain = (fromDomainId, fromDomainName) => {
     const targetDomains = adminDomains.filter(d => d.id !== fromDomainId);
     
@@ -507,7 +544,7 @@ export default function Dashboard() {
                             </div>
                           </td>
                           
-                          {/* 🔥 อัปเกรด: เพิ่มปุ่ม ✏️ หลังชื่อคนสร้างให้แอดมินคลิกเพื่อโอนกรรมสิทธิ์ */}
+                          {/* 🔥 เพิ่มปุ่ม ✏️ หลังชื่อคนสร้างให้แอดมินคลิกเพื่อโอนกรรมสิทธิ์รายคน */}
                           {user.role === 'admin' && ( 
                             <td className="p-4 font-bold text-indigo-400 text-sm">
                               <div className="flex items-center gap-2">
@@ -591,19 +628,69 @@ export default function Dashboard() {
             </div>
 
             {adminSubTab === 'users' && ( 
-              <table className="w-full text-left text-base">
-                <tbody>
-                  {adminUsers.map(u => ( 
-                    <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/20">
-                      <td className="p-4 text-white font-bold">{u.username}</td>
-                      <td className="p-4 text-center">
-                        <button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-3 py-1.5 rounded-xl text-sm mr-2">สลับสิทธิ์</button>
-                        <button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button>
-                      </td>
-                    </tr> 
-                  ))}
-                </tbody>
-              </table> 
+              <div className="space-y-8">
+                {/* 🔥 บล็อกเครื่องมือร่างทอง: โอนสิทธิ์ผ่าน Alias เป็นกลุ่มแบบจัดเต็ม */}
+                <div className="bg-[#0B101B] p-6 rounded-2xl border border-gray-800 shadow-md">
+                  <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">🤝 เครื่องมือโอนกรรมสิทธิ์ลิงก์ด่วน (ผ่าน Alias บัญชีกลุ่ม)</h3>
+                  <p className="text-sm text-gray-400 mb-4">คัดลอกรายการชื่อย่อ (Alias) จากกลุ่มเทเลแกรมมาวางเรียงบรรทัด เพื่อโอนคืนสิทธิ์ให้สมาชิกผู้ดูแลตัวจริงได้ทันทีแบบพร้อมกัน</p>
+                  
+                  <form onSubmit={handleBatchTransferByAlias} className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
+                    <div className="md:col-span-1">
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">1. วางรายการ Alias (1 ตัวต่อ 1 บรรทัด หรือคั่นด้วยคอมมา)</label>
+                      <textarea 
+                        rows="5"
+                        value={aliasTransferInput}
+                        onChange={(e) => setAliasTransferInput(e.target.value)}
+                        placeholder="วางที่นี่ เช่น&#10;JBSYY60&#10;NRZZZ191&#10;BBBY188" 
+                        className="w-full px-4 py-3 bg-[#181E29] border border-gray-800 rounded-xl text-sm outline-none text-white font-mono focus:ring-2 focus:ring-[#144EE3]"
+                      ></textarea>
+                    </div>
+                    
+                    <div className="md:col-span-1 flex flex-col justify-end h-full">
+                      <label className="block text-sm font-semibold text-gray-400 mb-2">2. เลือกชื่อพนักงานปลายทางที่ต้องการรับสิทธิ์</label>
+                      <select 
+                        value={selectedTargetUser} 
+                        onChange={(e) => setSelectedTargetUser(e.target.value)}
+                        className="w-full px-4 py-3.5 bg-[#181E29] border border-gray-800 rounded-xl text-sm text-white outline-none cursor-pointer focus:ring-2 focus:ring-[#144EE3]"
+                      >
+                        <option value="">-- เลือกชื่อพนักงาน --</option>
+                        {adminUsers.map(u => (
+                          <option key={u.id} value={u.id}>{u.username}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <button type="submit" className="w-full bg-[#144EE3] hover:bg-[#1140C7] text-white font-bold py-4 rounded-xl text-sm cursor-pointer transition shadow-md">
+                        🚀 ยืนยันบันทึกโอนย้ายสิทธิ์กลุ่มนี้
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* ตารางรายชื่อสมาชิกเดิมคงไว้ครบถ้วน */}
+                <div className="bg-[#0B101B] rounded-2xl border border-gray-800 overflow-hidden">
+                  <table className="w-full text-left text-base">
+                    <thead>
+                      <tr className="bg-gray-800/40 text-sm text-gray-400 border-b border-gray-800">
+                        <th className="p-4">พนักงานในระบบ</th>
+                        <th className="p-4 text-center">การจัดการสิทธิ์</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminUsers.map(u => (
+                        <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/20">
+                          <td className="p-4 text-white font-bold">👤 {u.username}</td>
+                          <td className="p-4 text-center">
+                            <button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-3 py-1.5 rounded-xl text-sm mr-2">สลับสิทธิ์</button>
+                            <button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
             
             {adminSubTab === 'domains' && ( 
@@ -733,7 +820,7 @@ export default function Dashboard() {
       </div>
 
       {/* ==================================================================================== */}
-      {/* 📊 🔥 MODAL ร่องทอง: รวม 5 โมดูล */}
+      {/* 📊 MODAL: ศูนย์สถิติครบ 5 โมดูล คงไว้สมบูรณ์ที่สุด */}
       {/* ==================================================================================== */}
       {showStatsModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
