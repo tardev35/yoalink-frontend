@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminDomains, setAdminDomains] = useState([]);
   const [adminTags, setAdminTags] = useState([]);
-  const [adminLogs, setAdminLogs] = useState([]); // 🔥 State ใหม่: สำหรับเก็บข้อมูลประวัติระบบ Audit Logs
+  const [adminLogs, setAdminLogs] = useState([]); 
 
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
@@ -58,7 +58,7 @@ export default function Dashboard() {
       if (adminSubTab === 'users') fetchAdminUsers();
       if (adminSubTab === 'domains') fetchAdminDomains();
       if (adminSubTab === 'tags') fetchAdminTags();
-      if (adminSubTab === 'logs') fetchAdminLogs(); // 🔥 ดักจับเมื่อแอดมินคลิกเข้าแท็บประวัติระบบ
+      if (adminSubTab === 'logs') fetchAdminLogs(); 
     }
   }, [activeTab, adminSubTab, search, selectedTag, currentPage]);
 
@@ -171,16 +171,7 @@ export default function Dashboard() {
   const fetchAdminUsers = async () => { try { const res = await axiosInstance.get('/api/admin/users', axiosConfig); setAdminUsers(res.data); } catch (err) { setActiveTab('links'); } };
   const fetchAdminDomains = async () => { try { const res = await axiosInstance.get('/api/admin/domains', axiosConfig); setAdminDomains(res.data); } catch (err) {} };
   const fetchAdminTags = async () => { try { const res = await axiosInstance.get('/api/admin/tags', axiosConfig); setAdminTags(res.data); } catch (err) {} };
-  
-  // 🔥 ฟังก์ชันใหม่: วิ่งไปดึงรายงานบันทึกประวัติการกระทำของระบบจากหลังบ้าน
-  const fetchAdminLogs = async () => {
-    try {
-      const res = await axiosInstance.get('/api/admin/logs', axiosConfig);
-      setAdminLogs(res.data || []);
-    } catch (err) {
-      console.error('Error fetching system audit logs');
-    }
-  };
+  const fetchAdminLogs = async () => { try { const res = await axiosInstance.get('/api/admin/logs', axiosConfig); setAdminLogs(res.data || []); } catch (err) { console.error('Error fetching system audit logs'); } };
 
   const handleAdminToggleRole = (id, role) => {
     const newRole = role === 'admin' ? 'user' : 'admin';
@@ -196,6 +187,47 @@ export default function Dashboard() {
   const handleAdminEditDomain = (id, currentName) => {
     Swal.fire({ title: 'แก้ไข Root Domain', input: 'text', inputValue: currentName, background: '#181E29', color: '#C9CED6', showCancelButton: true })
       .then(async (res) => { if (res.isConfirmed && res.value) { await axiosInstance.put(`/api/admin/domains/${id}`, { name: res.value }, axiosConfig); fetchAdminDomains(); } });
+  };
+
+  // 🔥 ฟังก์ชันใหม่: โอนย้ายลิงก์ข้ามโดเมน (Migrate Domain)
+  const handleAdminMigrateDomain = (fromDomainId, fromDomainName) => {
+    const targetDomains = adminDomains.filter(d => d.id !== fromDomainId);
+    
+    if (targetDomains.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'ไม่มีโดเมนปลายทาง', text: 'คุณต้องมีโดเมนอื่นในระบบอย่างน้อย 1 โดเมนเพื่อรับโอนลิงก์', background: '#181E29', color: '#C9CED6' });
+      return;
+    }
+
+    const optionsHtml = targetDomains.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+    Swal.fire({
+      title: `ย้ายลิงก์จาก: ${fromDomainName}`,
+      html: `
+        <p class="text-sm text-gray-400 mb-4">โปรดเลือกโดเมนใหม่ที่คุณต้องการโอนย้ายลิงก์ทั้งหมดไปรวมกัน</p>
+        <select id="targetDomainSelect" class="w-full px-4 py-3 bg-[#0B101B] border border-gray-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-[#144EE3]">
+          ${optionsHtml}
+        </select>
+        <p class="text-xs text-rose-400 mt-4 text-left">* ลิงก์ทุกตัวในโดเมนเก่า จะถูกย้ายไปโดเมนใหม่ทันที!</p>
+      `,
+      background: '#181E29',
+      color: '#C9CED6',
+      showCancelButton: true,
+      confirmButtonText: '🚀 ย้ายโอนลิงก์ทั้งหมด',
+      confirmButtonColor: '#9333ea', // สีม่วงสวยๆ ให้เด่นชัด
+      preConfirm: () => document.getElementById('targetDomainSelect').value
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const toDomainId = result.value;
+          const res = await axiosInstance.post('/api/admin/domains/migrate', { fromDomainId, toDomainId }, axiosConfig);
+          Swal.fire({ icon: 'success', title: 'สั่งโอนย้ายสำเร็จ!', text: res.data.message, background: '#181E29', color: '#C9CED6' });
+          fetchAdminDomains();
+          fetchLinks(); 
+        } catch (err) {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.response?.data?.message || 'ไม่สามารถย้ายโดเมนได้', background: '#181E29', color: '#C9CED6' });
+        }
+      }
+    });
   };
 
   const handleAdminDeleteDomain = (id, domainName) => {
@@ -429,7 +461,6 @@ export default function Dashboard() {
         {/* 👑 TAB 3: ADMIN DASHBOARD */}
         {activeTab === 'admin' && user.role === 'admin' && (
           <div className="bg-[#181E29] p-8 rounded-2xl border border-gray-800 shadow-lg animate-fade-in">
-            {/* 🔥 อัปเกรดซับแท็บ: เพิ่มเมนู 📝 ประวัติระบบ ให้แอดมินกดดูได้แบบ Flexible */}
             <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-3">
               <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>👥 สมาชิกทั้งหมด</button>
               <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนทั้งหมด</button>
@@ -438,10 +469,28 @@ export default function Dashboard() {
             </div>
 
             {adminSubTab === 'users' && ( <table className="w-full text-left text-base"><tbody>{adminUsers.map(u => ( <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{u.username}</td><td className="p-4 text-center"><button onClick={() => handleAdminToggleRole(u.id, u.role)} className="bg-[#144EE3]/20 text-[#61DAFB] px-3 py-1.5 rounded-xl text-sm mr-2">สลับสิทธิ์</button><button onClick={() => handleAdminDeleteUser(u.id, u.username)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
-            {adminSubTab === 'domains' && ( <table className="w-full text-left text-base"><tbody>{adminDomains.map(d => ( <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white font-bold">{d.name}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">แก้ไข</button><button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
+            
+            {/* 🔥 อัปเกรดตารางโดเมน: เพิ่มปุ่ม "ย้ายลิงก์" ให้แอดมิน */}
+            {adminSubTab === 'domains' && ( 
+              <table className="w-full text-left text-base">
+                <tbody>
+                  {adminDomains.map(d => ( 
+                    <tr key={d.id} className="border-b border-gray-800 hover:bg-gray-800/20">
+                      <td className="p-4 text-white font-bold">{d.name}</td>
+                      <td className="p-4 text-center">
+                        <button onClick={() => handleAdminEditDomain(d.id, d.name)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">แก้ไข</button>
+                        <button onClick={() => handleAdminMigrateDomain(d.id, d.name)} className="bg-fuchsia-500/20 text-fuchsia-400 px-3 py-1.5 rounded-xl text-sm mr-2 font-bold shadow-md cursor-pointer transition">🔄 ย้ายลิงก์</button>
+                        <button onClick={() => handleAdminDeleteDomain(d.id, d.name)} className="bg-red-500/20 text-red-500 px-3 py-1.5 rounded-xl text-sm">ลบ</button>
+                      </td>
+                    </tr> 
+                  ))}
+                </tbody>
+              </table> 
+            )}
+
             {adminSubTab === 'tags' && ( <table className="w-full text-left text-base"><tbody>{adminTags.map(t => ( <tr key={t} className="border-b border-gray-800 hover:bg-gray-800/20"><td className="p-4 text-white">#{t}</td><td className="p-4 text-center"><button onClick={() => handleAdminEditTag(t)} className="bg-yellow-500/20 text-yellow-500 px-3 py-1.5 rounded-xl text-sm mr-2">เปลี่ยนชื่อ</button><button onClick={() => handleAdminDeleteTag(t)} className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-xl text-sm">ลบ</button></td></tr> ))}</tbody></table> )}
 
-            {/* 🔥 ตารางวาดใหม่ระดับพรีเมียม: สำหรับโชว์ Audit Logs ดึง JSON มาถอดรหัสเป็นไทย */}
+            {/* ตารางแสดงผล Audit Logs */}
             {adminSubTab === 'logs' && (
               <div className="overflow-x-auto bg-[#0B101B] border border-gray-800/60 rounded-2xl p-2 shadow-inner">
                 <table className="w-full text-left text-base border-collapse">
@@ -474,6 +523,7 @@ export default function Dashboard() {
                         else if (log.action === 'DELETE_DOMAIN') { actionBadge = 'bg-orange-500/10 text-orange-400 border border-orange-500/20'; actionText = '🗑️ ลบโดเมนหลัก'; }
                         else if (log.action === 'RENAME_TAG') { actionBadge = 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'; actionText = '🏷️ แก้ไขชื่อแท็กส่วนกลาง'; }
                         else if (log.action === 'DELETE_TAG') { actionBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20'; actionText = '🗑️ ลบแท็กส่วนกลาง'; }
+                        else if (log.action === 'MIGRATE_DOMAIN') { actionBadge = 'bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20'; actionText = '🔄 โอนย้ายโดเมน'; } // 🔥 ระบบสีของการย้ายโดเมน
 
                         // 🔍 ถอดรหัสโครงสร้าง JSON ออกมาเป็นภาษาพูดให้หัวหน้าดูง่ายๆ
                         let textDesc = '';
@@ -483,12 +533,14 @@ export default function Dashboard() {
                           } else if (log.action === 'UPDATE_TAGS') {
                             textDesc = `แก้ไขลิงก์ yoalink.com/${log.details.alias}  ➔  จัดกลุ่มกลุ่มแท็กใหม่เป็น: [${log.details.newTags?.join(', ') || 'ไม่มีแท็ก'}]`;
                           } else if (log.action === 'UPDATE_DOMAIN') {
-                            textDesc = `หักคอเปลี่ยนชื่อโดเมนหลักจาก: "${log.details.fromDomain}"  ➔  เป็นชื่อใหม่: "${log.details.toDomain}" (ระดมอัปเดตลิงก์ย่อเบื้องหลัง)`;
+                            textDesc = `หักคอเปลี่ยนชื่อโดเมนหลักจาก: "${log.details.fromDomain}"  ➔  เป็นชื่อใหม่: "${log.details.toDomain}"`;
+                          } else if (log.action === 'MIGRATE_DOMAIN') {
+                            textDesc = `กวาดลิงก์ทั้งหมดจำนวน ${log.details.migratedCount} ลิงก์ ย้ายจากโดเมน "${log.details.fromDomain}" ➔ ไปยัง "${log.details.toDomain}" สำเร็จ`;
                           } else if (log.action === 'UPDATE_ROLE') {
                             textDesc = `เปลี่ยนสิทธิ์ของพนักงาน: "${log.details.targetUser}" จากระดับ [${log.details.fromRole.toUpperCase()}] ➔ เป็นระดับ [${log.details.toRole.toUpperCase()}]`;
                           } else if (log.action === 'DELETE_USER') {
                             textDesc = `ไล่ลบยูสเซอร์สมาชิกออกจากสารบบ: "${log.details.deletedUser}"`;
-                          } else if (log.action === 'CREATE_DOMAIN' || item.action === 'DELETE_DOMAIN') {
+                          } else if (log.action === 'CREATE_DOMAIN' || log.action === 'DELETE_DOMAIN') {
                             textDesc = `ชื่อ Root Domain ที่จัดการ: ${log.details.domain}`;
                           } else if (log.action === 'RENAME_TAG') {
                             textDesc = `เปลี่ยนชื่อป้ายกำกับส่วนกลางจาก #${log.details.oldTag} ➔ #${log.details.newTag}`;
@@ -499,7 +551,6 @@ export default function Dashboard() {
                           }
                         }
 
-                        // จัดฟอร์แมตเวลาภาษาไทยให้เนียนตา
                         const displayTime = new Date(log.createdAt).toLocaleString('th-TH', {
                           day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
                         });
@@ -672,14 +723,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* สไตล์อนิเมชันสำหรับเอฟเฟกต์ไฟวิ่งของกราฟ */}
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
       `}</style>
-
     </div>
   );
 }
