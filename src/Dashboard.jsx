@@ -436,7 +436,10 @@ export default function Dashboard() {
                   else if (rank === 3) { barColor = 'from-orange-400 to-red-500'; rankBadge = 'bg-orange-500/20 text-orange-400 text-xl border border-orange-500/50'; }
                   return (
                     <div key={link.id} className="relative bg-[#0B101B] p-5 rounded-2xl border border-gray-800 flex items-center gap-6 hover:border-gray-600 transition-colors group">
-                      <div className={`flex items-center justify-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>{crown} #{rank}</div>
+                     <div className={`flex flex-col items-center justify-center text-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>
+  {crown && <span className="text-sm leading-none mb-0.5">{crown}</span>}
+  <span className="leading-none">#{rank}</span>
+</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-end mb-3 gap-2">
                           <div className="truncate pr-4">
