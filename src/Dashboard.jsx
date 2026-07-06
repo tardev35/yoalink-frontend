@@ -99,10 +99,19 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateLink = async (e) => {
+const handleCreateLink = async (e) => {
     e.preventDefault();
     try {
-      await axiosInstance.post('/api/links', { originalUrl, alias, tags: tagsInput }, axiosConfig);
+      const cleanUrl = originalUrl.trim();
+      const cleanAlias = alias.trim();
+      const cleanTags = tagsInput.trim();
+
+      await axiosInstance.post('/api/links', { 
+        originalUrl: cleanUrl, 
+        alias: cleanAlias, 
+        tags: cleanTags 
+      }, axiosConfig);
+      
       Swal.fire({ icon: 'success', title: 'สร้างลิงก์สำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
       setOriginalUrl('');
       setAlias('');
@@ -113,7 +122,6 @@ export default function Dashboard() {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' });
     }
   };
-
   const handleCopy = (alias) => {
     const fullLink = `https://yoalink.com/${alias}`;
     navigator.clipboard.writeText(fullLink);
