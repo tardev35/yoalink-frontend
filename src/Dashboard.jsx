@@ -21,8 +21,6 @@ export default function Dashboard() {
   const [adminDomains, setAdminDomains] = useState([]);
   const [adminTags, setAdminTags] = useState([]);
   const [adminLogs, setAdminLogs] = useState([]); 
-  // 🔥 1. เพิ่ม State สำหรับเก็บข้อมูลบอท
-  const [adminBots, setAdminBots] = useState([]); 
 
   const [originalUrl, setOriginalUrl] = useState('');
   const [alias, setAlias] = useState('');
@@ -69,7 +67,6 @@ export default function Dashboard() {
       if (adminSubTab === 'domains') fetchAdminDomains();
       if (adminSubTab === 'tags') fetchAdminTags();
       if (adminSubTab === 'logs') fetchAdminLogs(); 
-      if (adminSubTab === 'bots') fetchAdminBots(); // 🔥 2. ดักโหลดข้อมูลบอทเมื่อคลิกแท็บ
     }
   }, [activeTab, adminSubTab, search, selectedTag, currentPage]);
 
@@ -102,7 +99,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateLink = async (e) => {
+const handleCreateLink = async (e) => {
     e.preventDefault();
     try {
       const cleanUrl = originalUrl.trim();
@@ -125,7 +122,6 @@ export default function Dashboard() {
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'รูปแบบ URL ไม่ถูกต้อง', background: '#181E29', color: '#C9CED6' });
     }
   };
-  
   const handleCopy = (alias) => {
     const fullLink = `https://yoalink.com/${alias}`;
     navigator.clipboard.writeText(fullLink);
@@ -305,37 +301,6 @@ export default function Dashboard() {
     } 
   };
 
-  // 🔥 3. ฟังก์ชันดึงข้อมูลบอทจาก API
-  const fetchAdminBots = async () => {
-    try {
-      const res = await axiosInstance.get('/api/admin/bots/suspicious', axiosConfig);
-      setAdminBots(res.data || []);
-    } catch (err) {
-      console.error('Error fetching bots');
-    }
-  };
-
-  // 🔥 4. ฟังก์ชันส่งคำสั่งบล็อก IP ถาวร
-  const handleAdminBlockIp = (ip) => {
-    Swal.fire({ 
-      title: `บล็อกถาวร IP: ${ip}?`, 
-      text: "IP นี้จะถูกเตะไปเว็บปลายทางเสมอ แต่ยอดคลิกจะไม่ขึ้นอีกเลย!", 
-      icon: 'warning',
-      background: '#181E29', color: '#C9CED6', 
-      showCancelButton: true, confirmButtonColor: '#EB568E', confirmButtonText: '🔨 ยืนยันการบล็อก'
-    }).then(async (res) => { 
-        if (res.isConfirmed) { 
-          try {
-            await axiosInstance.post(`/api/admin/bots/block`, { ipAddress: ip }, axiosConfig); 
-            Swal.fire({ icon: 'success', title: 'แบนสำเร็จ!', background: '#181E29', color: '#C9CED6', showConfirmButton: false, timer: 1500 });
-            fetchAdminBots(); 
-          } catch (err) {
-            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถแบน IP นี้ได้', background: '#181E29', color: '#C9CED6' });
-          }
-        } 
-      });
-  };
-
   const handleAdminToggleRole = (id, role) => {
     const newRole = role === 'admin' ? 'user' : 'admin';
     Swal.fire({ title: `เปลี่ยนสิทธิ์เป็น ${newRole.toUpperCase()}?`, background: '#181E29', color: '#C9CED6', showCancelButton: true })
@@ -480,9 +445,9 @@ export default function Dashboard() {
                   return (
                     <div key={link.id} className="relative bg-[#0B101B] p-5 rounded-2xl border border-gray-800 flex items-center gap-6 hover:border-gray-600 transition-colors group">
                      <div className={`flex flex-col items-center justify-center text-center font-black w-16 h-16 rounded-full shrink-0 ${rankBadge}`}>
-                        {crown && <span className="text-sm leading-none mb-0.5">{crown}</span>}
-                        <span className="leading-none">#{rank}</span>
-                      </div>
+  {crown && <span className="text-sm leading-none mb-0.5">{crown}</span>}
+  <span className="leading-none">#{rank}</span>
+</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-end mb-3 gap-2">
                           <div className="truncate pr-4">
@@ -670,9 +635,7 @@ export default function Dashboard() {
               <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>👥 สมาชิกทั้งหมด</button>
               <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนทั้งหมด</button>
               <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
-              <button onClick={() => setAdminSubTab('logs')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'logs' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>📝 Audit Logs</button>
-              {/* 🔥 5. ปุ่มใหม่สำหรับระบบจับบอท Anti-Spam */}
-              <button onClick={() => setAdminSubTab('bots')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'bots' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'text-gray-400 hover:text-white'}`}>🤖 (Anti-Spam)</button>
+              <button onClick={() => setAdminSubTab('logs')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'logs' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>📝 ประวัติระบบ (Audit Logs)</button>
             </div>
 
             {adminSubTab === 'users' && ( 
@@ -861,55 +824,6 @@ export default function Dashboard() {
                     )}
                   </tbody>
                 </table>
-              </div>
-            )}
-
-            {/* 🔥 6. แท็บโมดูลจับบอท (Anti-Spam) */}
-            {adminSubTab === 'bots' && (
-              <div className="space-y-6">
-                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 shadow-inner">
-                  <h3 className="text-xl font-bold text-red-400 flex items-center gap-2 mb-2">🚨 ศูนย์ตรวจสอบพฤติกรรมต้องสงสัย (24 ชม. ล่าสุด)</h3>
-                  <p className="text-sm text-gray-400">ระบบแสดงรายชื่อ IP ที่มีการกดคลิกลิงก์เกิน 20 ครั้ง/วัน หากพบว่ายอดสูงผิดปกติ (เช่น 1,000+) สามารถกด "บล็อก" เพื่อให้ระบบแบนการนับยอด (Shadowban) จาก IP นั้นถาวร</p>
-                </div>
-
-                <div className="overflow-x-auto bg-[#0B101B] border border-gray-800/60 rounded-2xl shadow-inner">
-                  <table className="w-full text-left text-base border-collapse">
-                    <thead>
-                      <tr className="bg-gray-800/40 text-sm font-bold text-gray-400 border-b border-gray-800">
-                        <th className="p-4 w-[25%]">📍 ไอพีแอดเดรส (IP)</th>
-                        <th className="p-4 w-[25%] text-center">📈 จำนวนคลิก (24 ชม.)</th>
-                        <th className="p-4 w-[25%]">⏰ ตรวจพบครั้งล่าสุด</th>
-                        <th className="p-4 w-[25%] text-center">⚙️ การจัดการ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-800/60 text-sm text-gray-300">
-                      {adminBots.length === 0 ? (
-                        <tr><td colSpan="4" className="text-center py-10 text-gray-500 italic font-medium">✅ สบายใจได้! ยังไม่พบพฤติกรรมบอทสแปมในระบบ</td></tr>
-                      ) : (
-                        adminBots.map((bot, idx) => (
-                          <tr key={idx} className="hover:bg-gray-800/30 transition-all duration-300">
-                            <td className="p-4 font-mono text-[#61DAFB] font-bold">{bot.ip}</td>
-                            <td className="p-4 text-center">
-                              <span className={`px-3 py-1 rounded-full font-black ${bot.clicks > 100 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'}`}>
-                                {bot.clicks.toLocaleString()} ครั้ง
-                              </span>
-                            </td>
-                            <td className="p-4 text-gray-400">{new Date(bot.lastSeen).toLocaleString('th-TH')}</td>
-                            <td className="p-4 text-center">
-                              {bot.isBlocked ? (
-                                <span className="text-gray-500 font-bold bg-gray-800 px-4 py-2 rounded-xl">ถูกแบนแล้ว 🥷</span>
-                              ) : (
-                                <button onClick={() => handleAdminBlockIp(bot.ip)} className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-sm shadow-lg shadow-red-600/30 transition cursor-pointer">
-                                  🔨 บล็อก IP นี้
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             )}
           </div>
