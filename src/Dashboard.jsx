@@ -670,9 +670,9 @@ export default function Dashboard() {
               <button onClick={() => setAdminSubTab('users')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'users' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>👥 สมาชิกทั้งหมด</button>
               <button onClick={() => setAdminSubTab('domains')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'domains' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🌐 โดเมนทั้งหมด</button>
               <button onClick={() => setAdminSubTab('tags')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'tags' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>🏷️ จัดการแท็กส่วนกลาง</button>
-              <button onClick={() => setAdminSubTab('logs')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'logs' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>📝 ประวัติระบบ (Audit Logs)</button>
+              <button onClick={() => setAdminSubTab('logs')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'logs' ? 'bg-[#144EE3] text-white shadow-md' : 'text-gray-400 hover:text-white'}`}>📝 Audit Logs</button>
               {/* 🔥 5. ปุ่มใหม่สำหรับระบบจับบอท Anti-Spam */}
-              <button onClick={() => setAdminSubTab('bots')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'bots' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'text-gray-400 hover:text-white'}`}>🤖 ระบบจับบอท (Anti-Spam)</button>
+              <button onClick={() => setAdminSubTab('bots')} className={`px-5 py-2.5 text-base font-bold rounded-xl cursor-pointer transition ${adminSubTab === 'bots' ? 'bg-red-600 text-white shadow-md shadow-red-600/20' : 'text-gray-400 hover:text-white'}`}>🤖 (Anti-Spam)</button>
             </div>
 
             {adminSubTab === 'users' && ( 
